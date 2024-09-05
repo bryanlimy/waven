@@ -1,5 +1,5 @@
 ZebrAnalysis
-
+![alt text](https://github.com/skriabineSop/zebranalysis/blob/main/img/g1730.png)
 packages required:
  
 python 3.8
