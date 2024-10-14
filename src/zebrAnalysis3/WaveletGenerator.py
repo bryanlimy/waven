@@ -168,23 +168,57 @@ def getWTfromNPY3D(videodata, waveletLibrary, tp_w):
 
 
 
-def downsample_video_binary(path, shape=(54, 135)):
+def downsample_video_binary(path, shape=(54, 135), chunk_size=1000):
     frames = []
     cap = cv2.VideoCapture(path)
     ret = True
+    ret1=True
+    F=[]
+    r=0
     while ret:
-        ret, img = cap.read()  # read one frame from the 'capture' object; img is (H, W, C)
-        if ret:
-            frames.append(img)
-    video = np.stack(frames, axis=0)  # dimensions (T, H, W, C)
-    video = video[:, :, :, 0]
-    video_bin = video > 100
-    del frames, video
-    gc.collect()
-    video_bin = skimage.transform.resize(video_bin, (video_bin.shape[0], shape[0], shape[1]))  # 137
-    video_binary = video_bin >= 0.5
-    np.save(path[:-3]+'_downsampled.npy',
-            video_binary.astype('bool'))
+        frames = []
+        print(r)
+        f=0
+        ret1=ret
+        while ret1:
+            # print(f)
+            ret, img = cap.read()  # read one frame from the 'capture' object; img is (H, W, C)
+            # print('while ret1')
+            if ret:
+                if f<(r+1)*chunk_size:
+                    if f >= r * chunk_size:
+                        frames.append(img)
+                        # print('add framw', f)
+                if f>=(r+1)*chunk_size:
+                    ret1=False
+                    print('false', f)
+                f = f + 1
+            else:
+                ret1=ret
+        try:
+            video = np.stack(frames, axis=0)  # dimensions (T, H, W, C)
+            print(video.shape)
+            video = video[:, :, :, 0]
+            video_bin = video > 100
+            nb_chunks=int(video.shape[0]/chunk_size)
+            del frames, video
+            gc.collect()
+            # frames = []
+            # for i in range(nb_chunks):
+            #     print(i)
+            video_bin = skimage.transform.resize(video_bin, (chunk_size, shape[0], shape[1]))  # 137
+            video_binary = video_bin >= 0.5
+            F.append(video_bin)
+            del video_bin
+            gc.collect()
+            video_downsampled = np.concatenate(F, axis=0)
+            # F.append(video_downsampled.astype('bool'))
+            r=r+1
+        except:
+            print('end of file')
+    F=np.array(F)
+    print(F.shape)
+    np.save(path[:-3]+'_downsampled.npy', video_downsampled.astype('bool'))
 
 
 def downsample_video_uint(path, shape=(54, 135), chunk_size=1000):

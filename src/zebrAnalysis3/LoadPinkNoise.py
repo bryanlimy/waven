@@ -1,8 +1,5 @@
 from .suite2p.utils import cortex_lab_utils as clu
 from .suite2p.utils import timelinepy as tlu
-from .suite2p.utils import twophopy as tpu
-from .suite2p.utils import mpeppy as mpu
-from .suite2p.utils import retinotopy as rt
 from .suite2p.utils import utils as utils
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,7 +23,7 @@ import torch
 from scipy.optimize import curve_fit
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
-from . Analysis_Utils import *
+from .Analysis_Utils import *
 
 
 def load_wavelets(pathdir, nx, ny, wavelets_r, wavelets_i, direction=False):
@@ -113,10 +110,10 @@ def load_stimulus_simple_cell(path='/media/sophie/Expansion1/UCL/datatest/', dow
     wavelets_r=np.load(path+'dwt_videodata_r.npy')
     wavelets_i = np.load(path+'dwt_videodata_i.npy')
     if downsampling:
-        wavelets_r = skimage.transform.resize(abs(wavelets_r), (9000, 20, 8, 8), anti_aliasing=True)
+        wavelets_r = skimage.transform.resize(abs(wavelets_r), (9000, 27, 11, 8), anti_aliasing=True)
         wavelets_r=np.swapaxes(wavelets_r, 2,1)
 
-        wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 20, 8, 8), anti_aliasing=True)
+        wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 27, 11, 8), anti_aliasing=True)
         wavelets_i=np.swapaxes(wavelets_i, 2,1)
 
     return wavelets_r,wavelets_i
@@ -128,10 +125,10 @@ def load_stimulus_simple_cell2(path='/media/sophie/Expansion1/UCL/datatest/', do
     wavelets_r=wavelets_r
     wavelets_i = np.load(path+'dwt_videodata2_i.npy')[:9000]#,  mmap_mode='c')
     if downsampling:
-        wavelets_r = skimage.transform.resize(abs(wavelets_r), (9000, 20, 8, 8, 3), anti_aliasing=True)
+        wavelets_r = skimage.transform.resize(abs(wavelets_r), (9000, 27, 11, 8, 3), anti_aliasing=True)
         wavelets_r=np.swapaxes(wavelets_r, 2,1)
 
-        wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 20, 8, 8, 3), anti_aliasing=True)
+        wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 27, 11, 8, 3), anti_aliasing=True)
         wavelets_i=np.swapaxes(wavelets_i, 2,1)
 
     return wavelets_r,wavelets_i
@@ -678,6 +675,7 @@ def getRFS_idx(idx, x_i, x_r, y, neuron_pos):
     get_rfs(idx, r2, r1, i2, i1, torch.Tensor(y[4500:]).T, torch.Tensor(y[:4500]).T, neuron_pos)
 
 
+
 def GetRFS_allneurons(x_i, x_r, y, startid , neuron_pos):
     # R2=TensorDataset(torch.Tensor(convolved_wavelets_r.reshape(9000, 54, 135, 8, 4)[4500:]), torch.Tensor(resps_all_mean[4500:]) )
     # R1=TensorDataset(torch.Tensor(convolved_wavelets_r.reshape(9000, 54, 135, 8, 4)[:4500]), torch.Tensor(resps_all_mean[:4500]) )
@@ -697,3 +695,30 @@ def GetRFS_allneurons(x_i, x_r, y, startid , neuron_pos):
             print(i)
             get_rfs(i, r2, r1, i2, i1, y2, y1, neuron_pos)
 
+
+def correctNeuronPos(neuron_pos):
+    ly = np.ceil(np.max(neuron_pos[:, 0]) / 3)
+    lx = np.ceil(np.max(neuron_pos[:, 1]))
+    n1 = neuron_pos[neuron_pos[:, 0] <= ly]
+    neuron_pos[np.logical_and(neuron_pos[:, 0] > ly, neuron_pos[:, 0] <= 2 * ly)] = neuron_pos[np.logical_and(
+        neuron_pos[:, 0] > ly, neuron_pos[:, 0] <= 2 * ly)] + np.array([-ly, lx])
+    neuron_pos[neuron_pos[:, 0] > 2 * ly] = neuron_pos[neuron_pos[:, 0] > 2 * ly] + np.array([-2 * ly, 2 * lx])
+    return neuron_pos
+
+
+def coarseWavelet(path, downsampling, nx0=135, ny0=54, nx=27, ny=11):
+    wavelets=load_stimulus_simple_cell(path, downsampling)
+    wavelets_r = wavelets[0]
+    wavelets_i = wavelets[1]
+    del wavelets
+    gc.collect()
+    wavelets_complex = np.power(wavelets_r, 2) + np.power(wavelets_i, 2)
+    w_r_downsampled = skimage.transform.resize(wavelets_r.reshape((-1, nx0, ny0, 8, 4)),
+                                               (wavelets_r.shape[0], nx, ny, 8, 4), anti_aliasing=True)
+    w_i_downsampled = skimage.transform.resize(wavelets_i.reshape((-1, nx0, ny0, 8, 4)),
+                                               (wavelets_i.shape[0], nx, ny, 8, 4), anti_aliasing=True)
+    del wavelets_r, wavelets_i
+    w_c_downsampled = skimage.transform.resize(wavelets_complex.reshape((-1, nx0, ny0, 8, 4)),
+                                               (wavelets_complex.shape[0], nx, ny, 8, 4), anti_aliasing=True)
+    del wavelets_complex
+    return w_r_downsampled, w_i_downsampled, w_c_downsampled

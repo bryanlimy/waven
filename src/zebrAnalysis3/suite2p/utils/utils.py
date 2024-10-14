@@ -4,9 +4,9 @@ from scipy.ndimage import convolve1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.interpolate import interp1d
 
-from suite2p.utils import timelinepy as tlu
-from suite2p.utils import cortex_lab_utils as clu
-from suite2p.utils import twophopy as tpu
+from . import timelinepy as tlu
+from . import cortex_lab_utils as clu
+from . import twophopy as tpu
 from matplotlib import pyplot as plt
 import itertools
 
