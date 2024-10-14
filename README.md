@@ -18,4 +18,4 @@ packages required:
 installation procedure:
 in a new environement type :
 
-python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps zebrAnalysis6
+python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps zebrAnalysis9.9
