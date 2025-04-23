@@ -15,7 +15,7 @@ packages required:
 - pandas
 - torch
 
-installation procedure:
+**installation procedure:**<br />
 in conda type :
 
   conda env create -f environment.yml<br />
@@ -27,6 +27,9 @@ https://docs.google.com/presentation/d/1nEv07CzCwYUoozucwwqi6qgS_t0jBy7KwqHKKoh2
 
 **Ressources with toy dataset and files**<br />
 https://drive.google.com/drive/folders/1EnxOnuz1PFIERs2nI0OQJS2t4ZI83dtE?usp=sharing<br />
+
+**Example script**<br />
+check out example.py
 
 **GUI**<br />
 <p align="center">
