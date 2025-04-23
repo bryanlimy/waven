@@ -1,4 +1,8 @@
+"""
+Created on Wed Mar 25 19:31:32 2025
 
+@author: Sophie Skriabine
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
@@ -18,10 +22,12 @@ from skimage.filters import gabor_kernel
 
 
 
-def makeGaborFilter(i, j, angle, sigma, phase, f=0.4, lx=54, ly=135, plot=False):
+def makeGaborFilter(i, j, angle, sigma, phase, f=0.4, lx=54, ly=135, plot=False, freq=True):
     backgrd=np.zeros((lx, ly))
-    gk = gabor_kernel(frequency=f, theta=angle, sigma_x=sigma, sigma_y=sigma, offset=phase)
-    # gk = gabor_kernel(frequency=f/sigma, theta=angle, sigma_x=sigma, sigma_y=sigma,offset=phase)
+    if freq:
+        gk = gabor_kernel(frequency=f, theta=angle, sigma_x=sigma, sigma_y=sigma, offset=phase)
+    else:
+        gk = gabor_kernel(frequency=(-0.016*sigma)+0.148, theta=angle, sigma_x=sigma, sigma_y=sigma,offset=phase)
     # plt.figure()
     # plt.imshow(gk.real)
     #
@@ -40,7 +46,8 @@ def makeGaborFilter(i, j, angle, sigma, phase, f=0.4, lx=54, ly=135, plot=False)
     backgrd=canvas[gk.shape[0]:gk.shape[0]+lx, gk.shape[1]:gk.shape[1]+ly]
     if plot:
         plt.figure()
-        plt.imshow(backgrd.T)
+        plt.rcParams['axes.facecolor'] = 'none'
+        plt.imshow(backgrd.T, cmap='Greys')
     return backgrd.T.astype('float16')
 
 
@@ -69,7 +76,22 @@ def makeFilterLibrary2(xs, ys, thetas, sigmas, offsets, frequencies):
     library=np.array(library)
     return library.reshape((lx, ly, thetas.shape[0], sigmas.shape[0], frequencies.shape[0], offsets.shape[0], -1))
 
-def makeFilterLibrary(xs, ys, thetas, sigmas, offsets, f):
+def makeFilterLibrary(xs, ys, thetas, sigmas, offsets, f, freq=True):
+    """
+    builds the Gabor library
+
+    Parameters:
+        thetas (int): number of orientatuion equally spaced between 0 and 180 degree.
+    	Sigmas (list): standart deviation of theb gabor filters expressed in pixels (radius of the gaussian half peak wigth).
+    	f (list): spatial frequencies expressed in pixels per cycles.
+    	offsets (list): 0 and pi/2.
+    	xs (int): number of azimuth positions (pix) (x shape of the downsampled stimuli).
+    	ys (int): number of elevation positions (pix) (y shape of the downsampled stimuli).
+    	freq (boolean): if True the, takes into account the frequencies list to generate the gabors filters, if False, there is a linear relationship between the size and the spatial frequencies as found in ref paper
+
+    Returns:
+        npy file containing all the generated gabor filters of shape (nx, ny, n_orientation, n_sizes, n_freq (if defined independantly from sizes, n_phases, nx*ny))
+    """
     library=[]
     lx=xs.shape[0]
     ly=ys.shape[0]
@@ -79,7 +101,7 @@ def makeFilterLibrary(xs, ys, thetas, sigmas, offsets, f):
             for t in thetas:
                 for s in sigmas:
                     for o in offsets:
-                        library.append( makeGaborFilter(x, y, t, s, o, f, lx=lx, ly=ly))
+                        library.append( makeGaborFilter(x, y, t, s, o, f, lx=lx, ly=ly, freq=freq))
 
     library=np.array(library)
     return library.reshape((lx, ly, thetas.shape[0], sigmas.shape[0], offsets.shape[0], -1))
@@ -168,18 +190,37 @@ def getWTfromNPY3D(videodata, waveletLibrary, tp_w):
 
 
 
-def downsample_video_binary(path, shape=(54, 135), chunk_size=1000):
+
+
+def downsample_video_binary(path, visual_coverage, analysis_coverage, shape=(54, 135), chunk_size=1000,ratios=(1, 1)):
+    """
+    Downsample the video stimulus.
+
+    Parameters:
+        Path: path to the stimulus (.mp4)
+        Visual Coverage (list): [azimuth left, azimuth right, elevation top , elevation bottom] in visual degree.
+    	Analysis Coverage (list): [azimuth left, azimuth right, elevation top , elevation bottom] in visual degree.
+        Shape (nx, ny): downsampled size
+        chunk size: for precessing effisciency, default 1000
+        ratio: if part of the screen is ignored
+
+    Returns:
+        saves the downsampled file at path
+    """
     frames = []
     cap = cv2.VideoCapture(path)
     ret = True
     ret1=True
     F=[]
     r=0
+    f = 0
+    ratio_x, ratio_y=ratios
+    print(ratio_x, ratio_y)
     while ret:
         frames = []
-        print(r)
-        f=0
+        print(r) 
         ret1=ret
+        i = 0
         while ret1:
             # print(f)
             ret, img = cap.read()  # read one frame from the 'capture' object; img is (H, W, C)
@@ -188,12 +229,17 @@ def downsample_video_binary(path, shape=(54, 135), chunk_size=1000):
                 if f<(r+1)*chunk_size:
                     if f >= r * chunk_size:
                         frames.append(img)
+                        i=i+1
+                        f = f + 1
                         # print('add framw', f)
                 if f>=(r+1)*chunk_size:
                     ret1=False
-                    print('false', f)
-                f = f + 1
+                    print('false', f, i)
+                    print(len(frames))
+                
+                
             else:
+                print(f, i, ret)
                 ret1=ret
         try:
             video = np.stack(frames, axis=0)  # dimensions (T, H, W, C)
@@ -206,6 +252,13 @@ def downsample_video_binary(path, shape=(54, 135), chunk_size=1000):
             # frames = []
             # for i in range(nb_chunks):
             #     print(i)
+            print(video_bin.shape)
+            xi=int((visual_coverage-analysis_coverage)[2])
+            xe=int(ratio_y*video_bin.shape[1])
+            yi=int((visual_coverage-analysis_coverage)[0])
+            ye=int(ratio_x*video_bin.shape[2])
+            print(xi, xe, yi, ye)
+            video_bin=video_bin[:,xi:xe,yi:ye]
             video_bin = skimage.transform.resize(video_bin, (chunk_size, shape[0], shape[1]))  # 137
             video_binary = video_bin >= 0.5
             F.append(video_bin)
@@ -218,7 +271,7 @@ def downsample_video_binary(path, shape=(54, 135), chunk_size=1000):
             print('end of file')
     F=np.array(F)
     print(F.shape)
-    np.save(path[:-3]+'_downsampled.npy', video_downsampled.astype('bool'))
+    np.save(path[:-4]+'_downsampled.npy', video_downsampled.astype('bool'))
 
 
 def downsample_video_uint(path, shape=(54, 135), chunk_size=1000):
@@ -245,12 +298,23 @@ def downsample_video_uint(path, shape=(54, 135), chunk_size=1000):
         del video_bin
         gc.collect()
     video_downsampled = np.concatenate(frames, axis=0)
-    np.save(path[:-3]+'_downsampled.npy', video_downsampled)
+    np.save(path[:-4]+'_downsampled.npy', video_downsampled)
 
+def waveletDecomposition(videodata, phase, sigmas, folder_path, library_path='/media/sophie/Expansion1/UCL/datatest/gabors_library.npy'):
+    """
+    Runs the wavelet decomposition
 
-def waveletDecomposition(videodata, phase, folder_path):
-    L = np.load('/media/sophie/Expansion1/UCL/datatest/gabors_library.npy')
-    sigmas = np.array([2, 3, 4, 5])
+    Parameters:
+        videodata (array like): downsampled stimulus movie (npy).
+        Phases (list): 0 and pi/2.
+    	Sigmas (list): standart deviation of theb gabor filters expressed in pixels (radius of the gaussian half peak wigth).
+    	folder_path: Path where to save the decomposition
+        Library Path: path to Gabor library (same as save path if ran)
+
+    Returns:
+        saves the wavelet decomposition as 'dwt_videodata_0 / 1.npy' at folder_path
+    """
+    L = np.load(library_path)
     WT = []
     for s, ss in enumerate(sigmas):
         l = L[:, :, :, s]
@@ -258,8 +322,5 @@ def waveletDecomposition(videodata, phase, folder_path):
         WT.append(wt)
     WT = np.array(WT)
     WT = np.moveaxis(WT, 0, 4)
-    # np.save('/media/sophie/Expansion1/UCL/datatest/dwt_videodata2_r.npy', WWT)
-    # np.save('/media/sophie/Seagate Basic/video/2screens/plaids/dwt_videodata_r.npy', WT)
     np.save(folder_path+'/dwt_videodata_'+str(phase)+'.npy', WT)
-
 

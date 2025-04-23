@@ -1,26 +1,22 @@
+"""
+Created on Wed Mar 25 19:31:32 2025
+
+@author: Sophie Skriabine
+"""
+import numpy as np
 from .suite2p.utils import cortex_lab_utils as clu
 from .suite2p.utils import timelinepy as tlu
+
 from .suite2p.utils import utils as utils
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy import ndimage
-import scipy.io as sio
-import skimage
+
 from skimage import transform
-import os
+
 import matplotlib
 matplotlib.use('TkAgg')
-from skimage.measure import block_reduce
-from scipy.spatial.distance import pdist, squareform
-from fastcluster import linkage
+
+import os
 import gc
-from sklearn.linear_model import Lasso
-import random
-from scipy import stats
-from scipy.sparse.linalg import svds
-import scipy.optimize as opt
-import torch
-from scipy.optimize import curve_fit
+
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 from .Analysis_Utils import *
@@ -105,34 +101,54 @@ def load_stimulus(pathdir, wavelets_r, wavelets_i, nx=161, ny=60):
         (wavelets.shape[0], wavelets.shape[1] * wavelets.shape[2] * wavelets.shape[3] * wavelets.shape[4]))
     return wavelets
 
-
-def load_stimulus_simple_cell(path='/media/sophie/Expansion1/UCL/datatest/', downsampling=False):
-    wavelets_r=np.load(path+'dwt_videodata_r.npy')
-    wavelets_i = np.load(path+'dwt_videodata_i.npy')
+def load_stimulus_simple_cell(path='/media/sophie/Expansion1/UCL/datatest/',nx=27, ny=11, no=8,ns=6, nf=1, downsampling=False):
+    #wavelets_r=np.load(path+'dwt_videodata_r.npy')
+    #wavelets_i = np.load(path+'dwt_videodata_i.npy')
+    wavelets_r=np.load(os.path.join(path, 'dwt_videodata_0.npy')) 
+    wavelets_i = np.load(os.path.join(path, 'dwt_videodata_1.npy')) 
+    print(wavelets_r.shape)
     if downsampling:
-        wavelets_r = skimage.transform.resize(abs(wavelets_r), (9000, 27, 11, 8), anti_aliasing=True)
+        wavelets_r = skimage.transform.resize(wavelets_r, (wavelets_r.shape[0], nx, ny, no, ns, nf), anti_aliasing=True)
         wavelets_r=np.swapaxes(wavelets_r, 2,1)
 
-        wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 27, 11, 8), anti_aliasing=True)
+        wavelets_i = skimage.transform.resize(wavelets_i, (wavelets_i.shape[0], nx, ny, no, ns, nf), anti_aliasing=True)
         wavelets_i=np.swapaxes(wavelets_i, 2,1)
 
     return wavelets_r,wavelets_i
 
 
 
-def load_stimulus_simple_cell2(path='/media/sophie/Expansion1/UCL/datatest/', downsampling=False):
-    wavelets_r=np.load(path+'dwt_videodata2_r.npy')[:9000]#, mmap_mode='c')
-    wavelets_r=wavelets_r
-    wavelets_i = np.load(path+'dwt_videodata2_i.npy')[:9000]#,  mmap_mode='c')
+
+def load_stimulus_simple_cell2_i(path='/media/sophie/Expansion1/UCL/datatest/', tt=[0,9000], downsampling=False):
+
+
+    wavelets_i = np.load(path+'dwt_videodata2_i.npy')[tt[0]:tt[1]]#,  mmap_mode='c')
     if downsampling:
-        wavelets_r = skimage.transform.resize(abs(wavelets_r), (9000, 27, 11, 8, 3), anti_aliasing=True)
-        wavelets_r=np.swapaxes(wavelets_r, 2,1)
+        # wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 20, 8, 8, 3), anti_aliasing=True)
+        # wavelets_i=np.swapaxes(wavelets_i, 2,1)
+        wavelets_i = skimage.transform.resize(wavelets_i[:, :, :, :, 2, :], (9000, 27, 11, 8, 4), anti_aliasing=True)
+        # w_i = np.swapaxes(w_i, 2, 1)
 
-        wavelets_i = skimage.transform.resize(abs(wavelets_i), (9000, 27, 11, 8, 3), anti_aliasing=True)
-        wavelets_i=np.swapaxes(wavelets_i, 2,1)
+    return wavelets_i
 
-    return wavelets_r,wavelets_i
 
+def load_stimulus_simple_cell2_r(path='/media/sophie/Expansion1/UCL/datatest/',tt=[0,9000], downsampling=False):
+    wavelets_r=np.load(path+'dwt_videodata2_r.npy')[tt[0]:tt[1]]#, mmap_mode='c')
+    W_R=[]
+    if downsampling:
+        # for i in range(wavelets_r.shape[-1]):
+        #     print(i)
+        wavelets_r = skimage.transform.resize(wavelets_r[:, :, :, :, 2, :], (tt, 27, 11, 8, 4), anti_aliasing=True)
+        # w_r = np.swapaxes(w_r, 2, 1)
+    # wavelets_r=wavelets_r
+
+
+    return wavelets_r
+
+def load_stimulus_simple_cell2(path='/media/sophie/Expansion1/UCL/datatest/', tt=[0, 9000], downsampling=False):
+    w_i=load_stimulus_simple_cell2_i(path, tt, downsampling)
+    w_r = load_stimulus_simple_cell2_r(path, tt, downsampling)
+    return w_r, w_i
 
 def loadExperiment(dirs, exp_info, pathdir,block_end, n_planes, n_repeat=6,n_frames=9000):
     exp_path = clu.find_expt_file(exp_info, 'root', dirs=dirs)
@@ -255,7 +271,51 @@ def loadExperiment(dirs, exp_info, pathdir,block_end, n_planes, n_repeat=6,n_fra
     return resps_all, neuron_pos, syncEcho_flip_times
 
 
-def align_datas(exp_info, dirs,spks, Nb_frames, nb_plane=1, plane=-1, w=0.0, threshold=1.25, methods='frame2ttl'):
+def align_rotary_encoder(exp_info, dirs,spks, Nb_frames, nb_plane=1, plane=-1, w=0.0, threshold=1.25, methods='frame2ttl'):
+    tlfile = clu.find_expt_file(exp_info, 'timeline', dirs)
+    tl = tlu.load_timeline(tlfile)
+
+    # frame_times = tpu.get_frame_times(tl)
+    rotary_encoder_ind='rotary_encoder'==tlu.get_input_names(tl)
+
+    try:
+        input_ind = 'neuralFrames' == tlu.get_input_names(tl)
+        # print(input_ind)
+        tp = tl['rawDAQData'][:, input_ind].flatten()
+        ind = np.diff(tp, prepend=tp[0]) > 0
+        frame_times = tl['rawDAQTimestamps'][ind]
+
+        input_ind = 'photoDiode' == tlu.get_input_names(tl)
+        syncEcho_thresh = 1.5
+    except:
+        if methods == 'photosensor':
+            syncEcho_thresh = threshold  # 1.25
+
+        elif methods == 'frame2ttl':
+            syncEcho_thresh = threshold
+        else:
+            print('unknown timeline variable')
+
+        print(methods, syncEcho_thresh)
+        input_ind = 'neural_frames' == tlu.get_input_names(tl)
+        # print(input_ind)
+        tp = tl['rawDAQData'][:, input_ind].flatten()
+        ind = np.diff(tp, prepend=tp[0]) > 0
+        frame_times = tl['rawDAQTimestamps'][ind]
+
+        input_ind = methods == tlu.get_input_names(tl)
+
+    esynv = tl['rawDAQData'][:, input_ind].flatten() > syncEcho_thresh
+    syncEcho_flip = np.asarray(np.logical_or(
+        np.logical_and(np.logical_not(esynv[:-1]), esynv[1:]),
+        np.logical_and(np.logical_not(esynv[1:]), esynv[:-1])
+    )).nonzero()[0]
+    syncEcho_flip_times = tl['rawDAQTimestamps'][syncEcho_flip]
+    print('syncEcho_flip_times: ', syncEcho_flip_times.shape)
+    rotary_encoder_vals = np.clip(np.diff(tl['rawDAQData'][:, rotary_encoder_ind].flatten()), -10, 10)[syncEcho_flip]
+    return rotary_encoder_vals
+
+def align_datas(exp_info, dirs,spks, Nb_frames, nb_plane=1, plane=-1, w=0.0, threshold=1.25, methods='frame2ttl', exptype='zebra', plotting=False):
     tlfile = clu.find_expt_file(exp_info, 'timeline', dirs)
     tl = tlu.load_timeline(tlfile)
 
@@ -287,18 +347,32 @@ def align_datas(exp_info, dirs,spks, Nb_frames, nb_plane=1, plane=-1, w=0.0, thr
 
         input_ind = methods == tlu.get_input_names(tl)
 
+    # syncEcho_thresh=threshold
+    print(methods, syncEcho_thresh)
     esynv = tl['rawDAQData'][:, input_ind].flatten() > syncEcho_thresh
+
     syncEcho_flip = np.asarray(np.logical_or(
         np.logical_and(np.logical_not(esynv[:-1]), esynv[1:]),
         np.logical_and(np.logical_not(esynv[1:]), esynv[:-1])
     )).nonzero()[0]
+    if exptype != 'zebra':#'gratings':
+        print('only up flips are considered')
+        syncEcho_flip = np.asarray(
+            np.logical_and(np.logical_not(esynv[1:]), esynv[:-1])
+        ).nonzero()[0]
     syncEcho_flip_times = tl['rawDAQTimestamps'][syncEcho_flip]
     print('syncEcho_flip_times: ', syncEcho_flip_times.shape)
+
+    if plotting:
+        plt.figure()
+        plt.plot(tl['rawDAQData'][:, input_ind].flatten())
+        plt.scatter(syncEcho_flip,np.ones(syncEcho_flip_times.shape[0]), c='k')
 
     if nb_plane!=1:
         print('multiple planes')
         frame_times=frame_times[(frame_times.shape[0]%nb_plane):].reshape(-1, nb_plane)
         print(frame_times.shape)
+        # frame_times=frame_times[:, :-1]
         if plane==-1:
             frame_times=np.mean(frame_times, axis=1)
         else:
@@ -374,54 +448,305 @@ def align_datas(exp_info, dirs,spks, Nb_frames, nb_plane=1, plane=-1, w=0.0, thr
     window = [w]
     # avg_spks=np.mean(np.array([spks[:,np.asarray(trial!=0).nonzero()[0]].tolist()[0] for trial in trials]), axis=0)
     resps_all = []
+    resps_all_raw=[]
+    if plotting:
+        plt.figure()
     for i, trial in enumerate(trials):
-        print(i)
-        spks_rt = utils.zscore(spks[:, np.asarray(trial != 0).nonzero()[0]], ax=1, epsilon=1e-5)
-        spks_rt = np.array([spks_rt[:, i] - np.min(spks_rt, axis=1) for i in range(spks_rt.shape[1])]).T
-        print(np.sum(trial), len(time_trials[i]), spks_rt.shape)
-        temp=np.zeros((Nb_frames, spks.shape[0], 1))
-        temp1=utils.interp_event_responses(time_trials[i], spks_rt,
-                                                       events=syncEcho_flip_times[Nb_frames * i:Nb_frames * (i + 1)],
-                                                       window=window, mean_over_window=False, print_interval=None)
+        print(i, trial.shape, spks.shape, np.max(np.asarray(trial != 0).nonzero()[0]))
+
+        if exptype=='zebra' or exptype=='sparse':
+            try:
+                spks_rt = utils.zscore(spks[:, np.asarray(trial != 0).nonzero()[0]], ax=1, epsilon=1e-5)
+                spks_rt = np.array([spks_rt[:, i] - np.min(spks_rt, axis=1) for i in range(spks_rt.shape[1])]).T
+                if plotting:
+                    plt.plot(spks_rt[200, :])
+                print(np.sum(trial), len(time_trials[i]), spks_rt.shape)
+                temp = np.zeros((Nb_frames, spks.shape[0], 1))
+                print('exptype : ', exptype)
+                temp1 = utils.interp_event_responses(time_trials[i], spks_rt,
+                                                     events=syncEcho_flip_times[Nb_frames * i:Nb_frames * (i + 1)],
+                                                     window=window, mean_over_window=False, print_interval=None)
+            except:
+                print('warning: spks too short ?')
+                print(spks.shape, np.max(np.asarray(trial != 0).nonzero()[0]))
+                spks_t=np.zeros((spks.shape[0], 1+np.max(np.asarray(trial != 0).nonzero()[0])))
+                spks_t[:, :spks.shape[1]]=spks
+                spks_rt = utils.zscore(spks_t[:, np.asarray(trial != 0).nonzero()[0]], ax=1, epsilon=1e-5)
+
+                spks_rt = np.array([spks_rt[:, i] - np.min(spks_rt, axis=1) for i in range(spks_rt.shape[1])]).T
+                if plotting:
+                    plt.plot(spks_rt[200, :])
+                print(np.sum(trial), len(time_trials[i]), spks_rt.shape)
+                temp = np.zeros((Nb_frames, spks.shape[0], 1))
+                print('exptype : ', exptype)
+                temp1=utils.interp_event_responses(time_trials[i], spks_rt,
+                                                               events=syncEcho_flip_times[Nb_frames * i:Nb_frames * (i + 1)],
+                                                               window=window, mean_over_window=False, print_interval=None)
+        elif exptype=='gratings':
+            window = (0, 2)
+            window_ts = np.arange(window[0], window[1], 0.033)
+
+            # spks_rt = utils.zscore(spks[:, np.asarray(trial != 0).nonzero()[0]], ax=1, epsilon=1e-5)
+            spks_rt = utils.scale_std(spks[:, np.asarray(trial != 0).nonzero()[0]])
+
+            resps = utils.interp_event_responses(time_trials[i], spks_rt, events=syncEcho_flip_times[Nb_frames * i:Nb_frames * (i + 1)],
+                                                     window=window_ts,
+                                                     mean_over_window=False, print_interval=None)
+            print(resps.shape)
+            temp1=np.moveaxis(resps, 2, 1).reshape(-1, resps.shape[1], 1)
+            windowed_responses = resps.max(axis=-1)
+            temp = np.zeros((int(temp1.shape[0]), spks.shape[0], 1))
+
+            # spks_rt = np.array([spks_rt[:, i] - np.min(spks_rt, axis=1) for i in range(spks_rt.shape[1])]).T
+            # print(np.sum(trial), len(time_trials[i]), spks_rt.shape)
+            # temp = np.zeros((Nb_frames, spks.shape[0], 1))
+            # print('exptype : ', exptype)
+            # seft=syncEcho_flip_times[Nb_frames * i:Nb_frames * (i + 1)]
+            # temp1=np.array([np.mean(spks_rt[:, np.logical_and(time_trials[i]>=seft[j], time_trials[i]<seft[j+1])][:, :4], axis=1) for j in range(Nb_frames-1)])
+            # temp1=temp1.reshape((temp1.shape[0], temp.shape[1], 1))
         temp[:temp1.shape[0]]=temp1
         resps_all.append([temp])
+        resps_all_raw.append(spks_rt)
 
-    return resps_all
+    return resps_all,resps_all_raw
 
-def loadSPKMesoscope(exp_info, dirs, path, block_end, Nb_plane=3, Nb_frames=9000, first=False, threshold=1.25,plane=-1,  method='frame2ttl'):
+
+def loadFluoMesoscope(exp_info, dirs, path, block_end, Nb_plane=3, Nb_frames=9000, first=False, last=True,
+                     threshold=1.25, plane=-1, method='frame2ttl', exptype='zebra'):
     if first:
-        if plane != -1:
-            spks = np.load(
-                path + '/plane%d/spks.npy' % plane)[
-                                       np.load(
-                                           path + '/plane%d/iscell.npy' % plane)[
-                                       :, 0].astype(bool)][:, :block_end]
+        print('first session')
+        if Nb_plane != 1:
+            print('multiple planes')
+            if plane != -1:
+                print('loading planes nb ', plane)
+
+                F = np.load(
+                    path + '/plane%d/F.npy' % plane)[
+                        np.load(
+                            path + '/plane%d/iscell.npy' % plane)[
+                        :, 0].astype(bool)][:, :block_end]
+
+                Fneu = np.load(
+                    path + '/plane%d/Fneu.npy' % plane)[
+                           np.load(
+                               path + '/plane%d/iscell.npy' % plane)[
+                           :, 0].astype(bool)][:, :block_end]
+
+                spks=F-(0.7*Fneu)
+
+            else:
+                print('loading all planes')
+                M = [np.load(
+                    path + '/plane%d/F.npy' % p)[
+                         np.load(
+                             path + '/plane%d/iscell.npy' % p)[
+                         :, 0].astype(bool)] -
+                     (0.7*np.load(
+                    path + '/plane%d/Fneu.npy' % p)[
+                         np.load(
+                             path + '/plane%d/iscell.npy' % p)[
+                         :, 0].astype(bool)])
+                     for p in range(Nb_plane)]
+                spks = np.concatenate([M[i][:, :M[-1].shape[1]] for i in range(len(M))])[:, :block_end]
+
         else:
+            print('single plane')
+            F = np.concatenate([np.load(
+                path + '/plane%d/F.npy' % p)[
+                                       np.load(
+                                           path + '/plane%d/iscell.npy' % p)[
+                                       :, 0].astype(bool)] for p in range(Nb_plane)])[:, :block_end]
+
+            Fneu = np.concatenate([np.load(
+                path + '/plane%d/Fneu.npy' % p)[
+                                    np.load(
+                                        path + '/plane%d/iscell.npy' % p)[
+                                    :, 0].astype(bool)] for p in range(Nb_plane)])[:, :block_end]
+            spks = F - (0.7 * Fneu)
+
+    elif last:
+        print('last session')
+        if Nb_plane != 1:
+            print('multiple planes')
+            if plane != -1:
+                print('loading planes nb ', plane)
+                F = np.load(
+                    path + '/plane%d/F.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
+                                                        :, 0].astype(bool)][:, block_end:]
+                Fneu = np.load(
+                    path + '/plane%d/Fneu.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
+                                                     :, 0].astype(bool)][:, block_end:]
+                spks = F - (0.7 * Fneu)
+            else:
+                print('loading all planes')
+                M = [np.load(
+                    path + '/plane%d/F.npy' % p)[
+                         np.load(
+                             path + '/plane%d/iscell.npy' % p)[:, 0].astype(bool)]
+                     - (0.7*np.load(path + '/plane%d/Fneu.npy' % p)[np.load(
+                             path + '/plane%d/iscell.npy' % p)[:, 0].astype(bool)] ) for p in range(Nb_plane)]
+                spks = np.concatenate([M[i][:, :M[-1].shape[1]] for i in range(len(M))])[:, block_end:]
+
+        else:
+            print('single plane')
+            F = np.concatenate([np.load(
+                path + '/plane%d/F.npy' % p)[
+                                       np.load(
+                                           path + '/plane%d/iscell.npy' % p)[
+                                       :, 0].astype(bool)] for p in range(Nb_plane)])[:, block_end:]
+            Fneu = np.concatenate([np.load(
+                path + '/plane%d/Fneu.npy' % p)[
+                                    np.load(
+                                        path + '/plane%d/iscell.npy' % p)[
+                                    :, 0].astype(bool)] for p in range(Nb_plane)])[:, block_end:]
+            spks = F - (0.7 * Fneu)
+    else:
+        print('mid')
+        if plane != -1:
+            F = np.load(
+                path + '/plane%d/F.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
+                                                    :, 0].astype(bool)][:, block_end[0]:block_end[1]]
+            Fneu = np.load(
+                path + '/plane%d/Fneu.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
+                                                 :, 0].astype(bool)][:, block_end[0]:block_end[1]]
+            spks = F - (0.7 * Fneu)
+        else:
+            spks = np.concatenate([np.load(
+                path + '/plane%d/F.npy' % p)[
+                    np.load(path + '/plane%d/iscell.npy' % p)[:, 0].astype(bool)]
+                     -(0.7*np.load(
+                path + '/plane%d/Fneu.npy' % p)[
+                    np.load(path + '/plane%d/iscell.npy' % p)[:, 0].astype(bool)])
+                                   for p in range(Nb_plane)])[:, block_end[0]:block_end[1]]
+
+    if Nb_plane != 1:
+        print('multiple planes')
+        if plane != -1:
+            print('loading planes nb ', plane)
+            neuron_pos = np.array([(1, plane * 512) + np.asarray([sta['med'] for sta in np.load(
+                path + '/plane%d/stat.npy' % plane,
+                allow_pickle=True)[np.load(
+                path + '/plane%d/iscell.npy' % plane)[:,
+                                   0].astype(bool)]])])[0]
+
+        else:
+            print('loading all planes')
+            neuron_pos = np.concatenate([(1, p * 512) + np.asarray([sta['med'] for sta in np.load(
+                path + '/plane%d/stat.npy' % p,
+                allow_pickle=True)[np.load(
+                path + '/plane%d/iscell.npy' % p)[:,
+                                   0].astype(bool)]]) for p in range(1, Nb_plane)])
+
+    else:
+        print('single plane')
+        neuron_pos = np.concatenate([(1, p * 512) + np.asarray([sta['med'] for sta in np.load(
+            path + '/plane%d/stat.npy' % p,
+            allow_pickle=True)[np.load(
+            path + '/plane%d/iscell.npy' % p)[:,
+                               0].astype(bool)]]) for p in range(Nb_plane)])
+
+    print('shape spks : ', spks.shape)
+    print('neuron_pos spks : ', neuron_pos.shape)
+
+    resps_all, resps_all2 = align_datas(exp_info, dirs, spks, Nb_frames, nb_plane=Nb_plane, threshold=threshold,
+                                        plane=plane, methods=method, exptype=exptype)
+    print('data aligned')
+    resps_all = np.array(resps_all)
+    resps_all = np.nan_to_num(resps_all)
+    resps_all = resps_all[:, 0, :, :, 0]
+    return resps_all, resps_all2, neuron_pos
+
+
+def loadSPKMesoscope(exp_info, dirs, path, block_end, Nb_plane=3, Nb_frames=9000, first=False, last=True,  threshold=1.25,plane=-1,  method='frame2ttl', exptype='zebra', w=0, plotting=False):
+    if first:
+        print('first session')
+        if Nb_plane != 1:
+            print('multiple planes')
+            if plane!=-1:
+                print('loading planes nb ', plane)
+                spks = np.load(
+                    path + '/plane%d/spks.npy' % plane)[
+                                           np.load(
+                                               path + '/plane%d/iscell.npy' % plane)[
+                                           :, 0].astype(bool)][:, :block_end]
+
+
+
+            else:
+                print('loading all planes')
+                M = [np.load(
+                    path + '/plane%d/spks.npy' % p)[
+                         np.load(
+                             path + '/plane%d/iscell.npy' % p)[
+                         :, 0].astype(bool)] for p in range(Nb_plane)]
+                spks = np.concatenate([M[i][:, :M[-1].shape[1]] for i in range( len(M))])[:, :block_end]
+
+        else:
+            print('single plane')
             spks = np.concatenate([np.load(
                 path + '/plane%d/spks.npy' % p)[
                                        np.load(
                                            path + '/plane%d/iscell.npy' % p)[
                                        :, 0].astype(bool)] for p in range(Nb_plane)])[:, :block_end]
 
-    else:
-        if plane != -1:
-            spks = np.load(
-                path + '/plane%d/spks.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
-                                       :, 0].astype(bool)][:, block_end:]
+    elif last:
+        print('last session')
+        if Nb_plane != 1:
+            print('multiple planes')
+            if plane != -1:
+                print('loading planes nb ', plane)
+                spks = np.load(
+                    path + '/plane%d/spks.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
+                                           :, 0].astype(bool)][:, block_end:]
+            else:
+                print('loading all planes')
+                M = [np.load(
+                    path + '/plane%d/spks.npy' % p)[
+                         np.load(
+                             path + '/plane%d/iscell.npy' % p)[
+                         :, 0].astype(bool)] for p in range(Nb_plane)]
+                spks = np.concatenate([M[i][:, :M[-1].shape[1]] for i in range( len(M))])[:, block_end:]
+
         else:
+            print('single plane')
             spks = np.concatenate([np.load(
                 path + '/plane%d/spks.npy' % p)[
                                        np.load(
                                            path + '/plane%d/iscell.npy' % p)[
                                        :, 0].astype(bool)] for p in range(Nb_plane)])[:, block_end:]
-
-    if plane != -1:
-        neuron_pos = np.array([(1, plane * 512) + np.asarray([sta['med'] for sta in np.load(
-            path + '/plane%d/stat.npy' % plane,
-            allow_pickle=True)[np.load(
-            path + '/plane%d/iscell.npy' % plane)[:,
-                               0].astype(bool)]])])[0]
     else:
+        print('mid')
+        if plane != -1:
+            spks = np.load(
+                path + '/plane%d/spks.npy' % plane)[np.load(path + '/plane%d/iscell.npy' % plane)[
+                                       :, 0].astype(bool)][:, block_end[0]:block_end[1]]
+        else:
+            spks = np.concatenate([np.load(
+                path + '/plane%d/spks.npy' % p)[
+                                       np.load(
+                                           path + '/plane%d/iscell.npy' % p)[
+                                       :, 0].astype(bool)] for p in range(Nb_plane)])[:, block_end[0]:block_end[1]]
+
+    if Nb_plane != 1:
+        print('multiple planes')
+        if plane != -1:
+            print('loading planes nb ', plane)
+            neuron_pos = np.array([(1, plane * 512) + np.asarray([sta['med'] for sta in np.load(
+                path + '/plane%d/stat.npy' % plane,
+                allow_pickle=True)[np.load(
+                path + '/plane%d/iscell.npy' % plane)[:,
+                                   0].astype(bool)]])])[0]
+
+        else:
+            print('loading all planes')
+            neuron_pos = np.concatenate([(1, p * 512) + np.asarray([sta['med'] for sta in np.load(
+                path + '/plane%d/stat.npy' % p,
+                allow_pickle=True)[np.load(
+                path + '/plane%d/iscell.npy' % p)[:,
+                                   0].astype(bool)]]) for p in range(1, Nb_plane)])
+
+    else:
+        print('single plane')
         neuron_pos = np.concatenate([(1, p * 512) + np.asarray([sta['med'] for sta in np.load(
             path + '/plane%d/stat.npy' % p,
             allow_pickle=True)[np.load(
@@ -432,11 +757,12 @@ def loadSPKMesoscope(exp_info, dirs, path, block_end, Nb_plane=3, Nb_frames=9000
     print('neuron_pos spks : ', neuron_pos.shape)
 
 
-    resps_all=align_datas(exp_info, dirs, spks, Nb_frames,nb_plane=Nb_plane, threshold=threshold, plane=plane, methods=method)
+    resps_all, resps_all2 = align_datas(exp_info, dirs, spks, Nb_frames,nb_plane=Nb_plane, threshold=threshold, plane=plane, w=w, methods=method, exptype=exptype, plotting=plotting)
+    print('data aligned')
     resps_all = np.array(resps_all)
     resps_all = np.nan_to_num(resps_all)
     resps_all = resps_all[:, 0, :, :, 0]
-    return resps_all, neuron_pos
+    return resps_all, resps_all2, neuron_pos
 
 
 
@@ -675,7 +1001,6 @@ def getRFS_idx(idx, x_i, x_r, y, neuron_pos):
     get_rfs(idx, r2, r1, i2, i1, torch.Tensor(y[4500:]).T, torch.Tensor(y[:4500]).T, neuron_pos)
 
 
-
 def GetRFS_allneurons(x_i, x_r, y, startid , neuron_pos):
     # R2=TensorDataset(torch.Tensor(convolved_wavelets_r.reshape(9000, 54, 135, 8, 4)[4500:]), torch.Tensor(resps_all_mean[4500:]) )
     # R1=TensorDataset(torch.Tensor(convolved_wavelets_r.reshape(9000, 54, 135, 8, 4)[:4500]), torch.Tensor(resps_all_mean[:4500]) )
@@ -696,29 +1021,93 @@ def GetRFS_allneurons(x_i, x_r, y, startid , neuron_pos):
             get_rfs(i, r2, r1, i2, i1, y2, y1, neuron_pos)
 
 
-def correctNeuronPos(neuron_pos):
+def correctNeuronPos(neuron_pos, resolution=1.3671):
+    """
+    converts neuron position in microns
+
+    Parameters:
+        neuron_pos (array-like): shape (n_neurons * n_dim)
+        resolution (float): resolution.
+
+    Returns:
+        neuron_pos_corrected[int]: new positions
+    """
     ly = np.ceil(np.max(neuron_pos[:, 0]) / 3)
     lx = np.ceil(np.max(neuron_pos[:, 1]))
     n1 = neuron_pos[neuron_pos[:, 0] <= ly]
     neuron_pos[np.logical_and(neuron_pos[:, 0] > ly, neuron_pos[:, 0] <= 2 * ly)] = neuron_pos[np.logical_and(
         neuron_pos[:, 0] > ly, neuron_pos[:, 0] <= 2 * ly)] + np.array([-ly, lx])
     neuron_pos[neuron_pos[:, 0] > 2 * ly] = neuron_pos[neuron_pos[:, 0] > 2 * ly] + np.array([-2 * ly, 2 * lx])
+    neuron_pos=resolution*neuron_pos
     return neuron_pos
 
+def coarseWavelet(path, downsampling, nx0=135, ny0=54, nx=27, ny=11,no=8,ns=6, nf=1, chunk_size=1000):
 
-def coarseWavelet(path, downsampling, nx0=135, ny0=54, nx=27, ny=11):
-    wavelets=load_stimulus_simple_cell(path, downsampling)
-    wavelets_r = wavelets[0]
-    wavelets_i = wavelets[1]
-    del wavelets
-    gc.collect()
-    wavelets_complex = np.power(wavelets_r, 2) + np.power(wavelets_i, 2)
-    w_r_downsampled = skimage.transform.resize(wavelets_r.reshape((-1, nx0, ny0, 8, 4)),
-                                               (wavelets_r.shape[0], nx, ny, 8, 4), anti_aliasing=True)
-    w_i_downsampled = skimage.transform.resize(wavelets_i.reshape((-1, nx0, ny0, 8, 4)),
-                                               (wavelets_i.shape[0], nx, ny, 8, 4), anti_aliasing=True)
-    del wavelets_r, wavelets_i
-    w_c_downsampled = skimage.transform.resize(wavelets_complex.reshape((-1, nx0, ny0, 8, 4)),
-                                               (wavelets_complex.shape[0], nx, ny, 8, 4), anti_aliasing=True)
-    del wavelets_complex
+    """
+    Loads a coarse version of the wavelet transform for a quick neuron feature estimation. 
+    If cannot find the wavelets decomposition and downsampling, it will run it
+
+    Parameters:
+        Path: patn to the wavelet decomposition diretory.
+        downsampling (bool): default False
+        NX0 (int): number of azimuth positions (pix) (x shape of the downsampled stimuli).
+    	NY0 (int): number of elevation positions (pix) (y shape of the downsampled stimuli).
+    	NX (int): new (coarse) number of azimuth positions (pix) (default 27).
+    	NY (int): new (coarse) number of elevation positions (pix) (default 11).
+    	NO: nb of orienatations (default 8).
+    	NS: number of sizes
+    	NF: number of spatial frequencies
+    	chunk_size: for computational effisciency. 1000 is in geenral a good value
+
+    Returns:
+        the coarse wavvelet decomposition (cosin, sine, cos^2 +sin^2)
+    """
+    print('loading wavelets...')
+    if os.path.exists(os.path.join(path, 'dwt_downsampled_videodata.npy')):
+        print('already downsampled')
+        wavelets_downsampled=np.load(os.path.join(path, 'dwt_downsampled_videodata.npy'))
+        w_r_downsampled=wavelets_downsampled[0]
+        w_i_downsampled=wavelets_downsampled[1]
+        w_c_downsampled=wavelets_downsampled[2]
+        del wavelets_downsampled
+        gc.collect()
+    else:
+        print('downsampling')
+        wavelets=load_stimulus_simple_cell(path, nx, ny, no,ns, nf,downsampling)
+        wavelets_r = wavelets[0]
+        wavelets_i = wavelets[1]
+        del wavelets
+        gc.collect()
+        nb_chunks = int(wavelets_r.shape[0] / chunk_size)
+        I=[]
+        R=[]
+        C=[]
+
+        for i in range(nb_chunks):
+            print(i)
+            w_r=wavelets_r[i * chunk_size:(i + 1) * chunk_size]
+            w_i=wavelets_i[i * chunk_size:(i + 1) * chunk_size]
+            wavelets_complex = (np.power(w_r, 2)
+                                + np.power(w_i, 2))
+            print(w_r.shape)
+            print(w_i.shape)
+            print(wavelets_complex.shape)
+            w_r_downsampled = skimage.transform.resize(w_r.reshape((-1, nx0, ny0,no, ns)),
+                                                       (w_r.shape[0], nx, ny, no, ns, nf), anti_aliasing=True)
+            w_i_downsampled = skimage.transform.resize(w_i.reshape((-1, nx0, ny0, no, ns)),
+                                                       (w_i.shape[0], nx, ny, no, ns, nf), anti_aliasing=True)
+            del w_i, w_r
+            gc.collect()
+            I.append(w_i_downsampled)
+            R.append(w_r_downsampled)
+            w_c_downsampled = skimage.transform.resize(wavelets_complex.reshape((-1, nx0, ny0, no, ns, nf)),
+                                                       (wavelets_complex.shape[0], nx, ny, no, ns, nf), anti_aliasing=True)
+            C.append(w_c_downsampled)
+
+        del wavelets_r, wavelets_i
+        del wavelets_complex
+        w_r_downsampled=np.concatenate(R, axis=0)
+        w_i_downsampled = np.concatenate(I, axis=0)
+        w_c_downsampled = np.concatenate(C, axis=0)
+        np.save(os.path.join(path, 'dwt_downsampled_videodata.npy'),[w_r_downsampled, w_i_downsampled, w_c_downsampled])
     return w_r_downsampled, w_i_downsampled, w_c_downsampled
