@@ -18,5 +18,5 @@ packages required:
 installation procedure:
 in conda type :
 
-conda env create -f environment.yml
-python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps zebrAnalysis9.54
+  conda env create -f environment.yml<br />
+  python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps zebrAnalysis9.54<br />
