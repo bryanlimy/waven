@@ -16,6 +16,7 @@ packages required:
 - torch
 
 installation procedure:
-in a new environement type :
+in conda type :
 
-python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps zebrAnalysis9.9
+conda env create -f environment.yml
+python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps zebrAnalysis9.54
