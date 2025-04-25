@@ -1,6 +1,6 @@
-<p align="right">
-  <img src="https://github.com/skriabineSop/zebranalysis/blob/main/img/g1730.png" title="hover text">
- </p>
+<div>
+    <img src="https://github.com/skriabineSop/zebranalysis/blob/main/img/g1730.png" width="350" align="right"/>
+</div>
 
 **ZebrAnalysis**
 
