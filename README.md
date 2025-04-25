@@ -14,7 +14,7 @@ packages required:
 - pandas
 - torch
 
-** General Documenttaion and tutorial**<br />
+**General Documenttaion and tutorial**<br />
 can be found here <https://zebranalysis.readthedocs.io/en/latest/><br />
 
 
