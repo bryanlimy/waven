@@ -1,6 +1,6 @@
-<p align="right">
-  <img src="https://github.com/skriabineSop/zebranalysis/blob/main/img/g1730.png" title="hover text">
- </p>
+<div>
+    <img src="https://github.com/skriabineSop/zebranalysis/blob/main/img/g1730.png" width="250" align="right"/>
+</div>
 
 **ZebrAnalysis**
 
@@ -14,8 +14,8 @@ packages required:
 - pandas
 - torch
 
-** General Documenttaion and tutorial**
-can be found here <https://zebranalysis.readthedocs.io/en/latest/>
+** General Documenttaion and tutorial**<br />
+can be found here <https://zebranalysis.readthedocs.io/en/latest/><br />
 
 
 **installation procedure:**<br />
