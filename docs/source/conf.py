@@ -58,12 +58,12 @@ html_theme_options = {
             "class": "",
         },
     ],
-    "source_repository": "https://github.com/skriabineSop/zebranalysis/",
+    "source_repository": "https://github.com/skriabineSop/waven/",
     "source_branch": "main",
     "source_directory": "img",
     "light_logo": "image1630.png",
     "dark_logo": "image1630.png",
 }
 html_theme = "furo"
-html_title = "ZebrAnalysis"
+html_title = "Waven"
 html_favicon = "image1630.png"
