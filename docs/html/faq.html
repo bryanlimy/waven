@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
-<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Quick Start Guide" href="quickstart.html" />
+<link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" />
 
     <link rel="shortcut icon" href="_static/image1630.png"/><!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
-        <title>Waven</title>
+        <title>recommendation and tips/FAQ - Waven</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=362ab14a" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=354aac6f" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=302659d7" />
@@ -166,7 +166,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="#"><div class="brand">Waven</div></a>
+      <a href="index.html"><div class="brand">Waven</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -187,7 +187,7 @@
   <aside class="sidebar-drawer">
     <div class="sidebar-container">
       
-      <div class="sidebar-sticky"><a class="sidebar-brand" href="#">
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
   <div class="sidebar-logo-container">
     <img class="sidebar-logo only-light" src="_static/image1630.png" alt="Light Logo"/>
@@ -226,12 +226,12 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="https://github.com/skriabineSop/waven/blob/main/img/index.rst?plain=true" title="View this page">
+  <a class="muted-link" href="https://github.com/skriabineSop/waven/blob/main/img/faq.rst?plain=true" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
 </div><div class="edit-this-page">
-  <a class="muted-link" href="https://github.com/skriabineSop/waven/edit/main/img/index.rst" title="Edit this page">
+  <a class="muted-link" href="https://github.com/skriabineSop/waven/edit/main/img/faq.rst" title="Edit this page">
     <svg><use href="#svg-pencil"></use></svg>
     <span class="visually-hidden">Edit this page</span>
   </a>
@@ -250,26 +250,24 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="welcome-to-zebranalysis-s-documentation">
-<h1>Welcome to ZebrAnalysis’s documentation!<a class="headerlink" href="#welcome-to-zebranalysis-s-documentation" title="Permalink to this heading">¶</a></h1>
-</section>
-<section id="table-of-contents">
-<h1>Table of Contents<a class="headerlink" href="#table-of-contents" title="Permalink to this heading">¶</a></h1>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-</ul>
+          <section id="recommendation-and-tips-faq">
+<span id="faq"></span><h1>recommendation and tips/FAQ<a class="headerlink" href="#recommendation-and-tips-faq" title="Permalink to this heading">¶</a></h1>
+<div class="admonition-q-where-should-i-save-the-video-files-and-other-data-files admonition">
+<p class="admonition-title">Q: Where should I save the video files and other data files?</p>
+<p>A: Save all files locally on your machine. Reading and writing from a server may significantly slow down processing.</p>
 </div>
-</section>
-<section id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this heading">¶</a></h1>
-<ul class="simple">
-<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
-<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
-<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
-</ul>
+<div class="admonition-q-can-i-save-the-gabor-filter-library-anywhere admonition">
+<p class="admonition-title">Q: Can I save the Gabor filter library anywhere?</p>
+<p>A: Save the Gabor library locally as well. It can be a large file and should be accessible quickly for efficient processing.</p>
+</div>
+<div class="admonition-q-the-wavelet-preprocessing-step-takes-a-long-time-is-that-normal admonition">
+<p class="admonition-title">Q: The wavelet preprocessing step takes a long time. Is that normal?</p>
+<p>A: Yes. The initial preprocessing can be time-consuming. However, once completed, the saved files are reused for future analysis. As long as subsequent experiments use the same video stimulus, the analysis will be much faster.</p>
+</div>
+<div class="admonition-q-what-are-the-minimum-hardware-requirements admonition">
+<p class="admonition-title">Q: What are the minimum hardware requirements?</p>
+<p>A: Make sure your system has <strong>at least 100 GB</strong> of free disk space and <strong>64 GB of RAM</strong> to run the analysis smoothly.</p>
+</div>
 </section>
 
         </article>
@@ -277,15 +275,7 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="quickstart.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">Quick Start Guide</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
+          
           
         </div>
         <div class="bottom-of-page">

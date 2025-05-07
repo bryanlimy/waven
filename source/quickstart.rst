@@ -3,16 +3,16 @@
 Quick Start Guide
 =================
 
-This page explains how to use the above code to extract visuak feature preferences from 2p neural datas
+This page explains how to use the above code to extract visual feature preferences from 2p neural datas
 
 Setting up the parameters**
 
 .. code-block:: python
 	
-	import zebrAnalysis3.WaveletGenerator as wg
-	import zebrAnalysis3.Analysis_Utils as au
-	import zebrAnalysis3.LoadPinkNoise as lpn
-	import zebrAnalysis3.zebraGUI as ui
+	import waven.WaveletGenerator as wg
+	import waven.Analysis_Utils as au
+	import waven.LoadPinkNoise as lpn
+	import waven.zebraGUI as ui
 	import numpy as np
 	import gc
 	import os
@@ -25,13 +25,13 @@ Setting up the parameters**
 	    "Phases": "[0, 90]",
 	    "NX": "135",
 	    "NY": "54",
-	    "Save Path":"/home/sophie/Documents/POSTDOC/TEMP/gabors_library.npy"
+	    "Save Path":"/path/to/your/ressources/folder/gabors_library.npy"
 	}
 
 	# List of default parameters
 	param_defaults = {
-	    "Path Directory": "/media/sophie/Expansion1/UCL/datatest/videos",
-	    "Dirs": "/media/sophie/Seagate Basic/datasets",
+	    "Path Directory": "/path/to/your/folder/videos",
+	    "Dirs": "/path/to/your/dataset",
 	    "Experiment Info": "('SS002', '2024-07-23', 3)",
 	    "Number of Planes": "1",
 	    "Block End": "0",
@@ -46,8 +46,8 @@ Setting up the parameters**
 	    "Analysis Coverage": "[-135, 0, 34, -34]",
 	    "Number of Frames": "18000",
 	    "Number of Trials to Keep": "3",
-	    "Movie Path": "/home/sophie/Documents/POSTDOC/TEMP/videos/perlin_stimulus_10min.mp4",
-	    "Library Path": "/home/sophie/Documents/POSTDOC/TEMP/gabors_library.npy",
+	    "Movie Path": "/path/to/your/folder/perlin_stimulus_10min.mp4",
+	    "Library Path": "/path/to/your/folder/gabors_library.npy",
 	    "Spks Path": "None"
 	}
 Here is a quick explanation of each parameter:
@@ -86,12 +86,14 @@ Here is a quick explanation of each parameter:
 	    Spks Path (opt): path to the spks.npy file to skip the alignement procedure, if set ignores Parameter alignment
 	"""
 
+further documentation can be found here <https://github.com/skriabineSop/waven/tree/main/pydocs>
+
 2. **To run the UI:**
 .. code-block:: python
 	
 	ui.run(param_defaults,gabor_param)
 
-documentation can be found here <https://docs.google.com/presentation/d/1nEv07CzCwYUoozucwwqi6qgS_t0jBy7KwqHKKoh2f2U/edit?usp=sharing>
+GUI documentation can be found here <https://docs.google.com/presentation/d/1nEv07CzCwYUoozucwwqi6qgS_t0jBy7KwqHKKoh2f2U/edit?usp=sharing>
 
 3. **To create a new Gabor library**
 
