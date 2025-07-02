@@ -110,6 +110,7 @@ def run(param_defaults, gabor_param):
         downsample_video_binary(movpath, visual_coverage, analysis_coverage, shape=(ny, nx), chunk_size=1000,
                                 ratios=(ratio_x, ratio_y))
         videodata = np.load(movpath[:-4] + '_downsampled.npy')
+        videodata=videodata.astype(int)-np.logical_not(videodata).astype(int)
         waveletDecomposition(videodata, 0, sigmas, parent_dir, lib_path)
         waveletDecomposition(videodata, 1, sigmas, parent_dir, lib_path)
         messagebox.showinfo("wavelet transform", "Done!")

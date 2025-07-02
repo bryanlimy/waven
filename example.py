@@ -1,7 +1,7 @@
-import zebrAnalysis3.WaveletGenerator as wg
-import zebrAnalysis3.Analysis_Utils as au
-import zebrAnalysis3.LoadPinkNoise as lpn
-import zebrAnalysis3.zebraGUI as ui
+import waven.WaveletGenerator as wg
+import waven.Analysis_Utils as au
+import waven.LoadPinkNoise as lpn
+import waven.zebraGUI as ui
 import numpy as np
 import gc
 import os
@@ -149,7 +149,7 @@ lib_path=path_save
 
 
 
-
+## define visual coverage for the analysis
 if (visual_coverage!=analysis_coverage):
     visual_coverage=np.array(visual_coverage)
     analysis_coverage=np.array(analysis_coverage)
@@ -159,10 +159,15 @@ else:
     ratio_x=1
     ratio_y=1
 
+
+
+
+
 ## downsamples and wavelet transforms the stimulus
 wg.downsample_video_binary(movpath,visual_coverage,  analysis_coverage, shape=(ny, nx), chunk_size=1000, ratios=(ratio_x, ratio_y))
 path=os.path.dirname(movpath)
 videodata=np.load(movpath[:-4]+'_downsampled.npy')
+videodata=videodata.astype(int)-np.logical_not(videodata).astype(int) # makes the black value -1 and white 1 intead of [0, 1]
 
 wg.waveletDecomposition(videodata, 0, sigmas, path, lib_path)
 wg.waveletDecomposition(videodata, 1, sigmas, path, lib_path)
@@ -206,3 +211,14 @@ au.Plot_RF(rfs_zebra[0][idx],4, title=np.max(rfs_zebra[0][idx]))
 
 ## plots neuron tuning curves
 tuning_curve=au.PlotTuningCurve(rfs_zebra, 2441, analysis_coverage, sigmas_deg, screen_ratio)
+
+
+## run Model on all neurons at once and save the result
+# simple version (fast)
+Predictions, Params, nonlinParams,RhoPhiParams,Metrics, OS=run_Model(rfs, np.array(maxes1), np.array(maxes0), spks, wavelets1, wavelet0, double_wavelet_model=False)
+
+# high granularity version (full model, slower)
+
+
+
+
