@@ -27,7 +27,7 @@ packages required:
 in conda type :
 
   conda env create -f environment.yml<br />
-  python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps waven0.1<br />
+  python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps waven<br />
 
 
 **GUI Documentation:**<br />
