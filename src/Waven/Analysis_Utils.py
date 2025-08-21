@@ -7,9 +7,9 @@ Created on Wed Mar 25 19:31:32 2025
 import skimage
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
 from skimage import transform
-
+import pickle
 import matplotlib
 matplotlib.use('TkAgg')
 from scipy.stats import pearsonr
@@ -37,6 +37,22 @@ from sklearn.decomposition import NMF
 from tensorly.decomposition import non_negative_parafac
 import math
 import cv2
+from matplotlib.gridspec import GridSpec
+from matplotlib.ticker import FuncFormatter
+import matplotlib.ticker as ticker
+
+
+
+def pi_formatter(x, pos):
+    n = int(np.round(x / np.pi, 2))
+    if n == 0:
+        return "0"
+    elif n == 1:
+        return r"$\pi$"
+    elif n == -1:
+        return r"$-\pi$"
+    else:
+        return r"${}\pi$".format(n)
 
 
 def Decay(t, tau, t0):
@@ -3012,12 +3028,19 @@ def TwoDimColorMap(X, Y, plotting=False):
 
 
 
+
 def rescale_to_minus_a_plus_a(arr, a=1.0):
     arr_min, arr_max = arr.min(), arr.max()
     if arr_max == arr_min:
         return np.zeros_like(arr)  # éviter division par zéro
     arr_scaled = 2 * a * (arr - arr_min) / (arr_max - arr_min) - a
     return arr_scaled
+
+def signaltonoiseScipy(a, axis=0, ddof=0):
+    a = np.asanyarray(a)
+    m = a.mean(axis)
+    sd = a.std(axis=axis, ddof=ddof)
+    return np.where(sd == 0, 0, m/sd)
 
 
 def run_Model(maxes0, maxes1, spks, wavelets_i, wavelets_r, dt1=9000, n_min=5, double_wavelet_model=True, train_idx=[0, 2], test_idx=[1, 3], plotting=False):
@@ -3026,6 +3049,7 @@ def run_Model(maxes0, maxes1, spks, wavelets_i, wavelets_r, dt1=9000, n_min=5, d
     RhoPhiParams=[]
 
     Metrics=[]
+    interpolators = []
 
     for idx in range(spks.shape[2]):
         x=maxes0[0, idx]
@@ -3104,7 +3128,7 @@ def run_Model(maxes0, maxes1, spks, wavelets_i, wavelets_r, dt1=9000, n_min=5, d
         #                                                          plotting=True, more_smooth=True)  #
 
         # vis_resp, a=GetNeuronVisresponse(idx,w_i, w_r, w_c, w_i_inhib, w_r_inhib, w_c_inhib, dphi.reshape(-1, 1), dphi_inhib.reshape(-1, 1), spks, dt1=7200, train_idx=[0, 2], test_idx=[1, 3], lastmin=True, func=relu)
-        vis_resp, a, nonlinparams, rhophiparams, plots, unrectified, w = GetNeuronVisresponse(idx, w_i, w_r, w_i_inhib,
+        vis_resp, a, nonlinparams, rhophiparams, plots, unrectified, w, interp = GetNeuronVisresponse(idx, w_i, w_r, w_i_inhib,
                                                                                           w_r_inhib,
                                                                                           dphi.reshape(-1, 1),
                                                                                           dphi_inhib.reshape(-1, 1),
@@ -3121,13 +3145,14 @@ def run_Model(maxes0, maxes1, spks, wavelets_i, wavelets_r, dt1=9000, n_min=5, d
         nonlinParams.append(nonlinparams)
         RhoPhiParams.append(rhophiparams)
         Metrics.append(a)
+        interpolators.append(interp)
 
     Predictions=np.array(Predictions)
     nonlinParams=np.array(nonlinParams)
     RhoPhiParams=np.array(RhoPhiParams)
     M = [[m[0], m[1], m[2][0][1]] for m in Metrics]
     Metrics = np.array(M)
-    return Predictions, nonlinParams,RhoPhiParams,Metrics
+    return Predictions, nonlinParams,RhoPhiParams,Metrics,interpolators
 
 def run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_coverage, neuron_pos,
                     wavelet_path='/media/sophie/Expansion1/UCL/utils/2screens/10/',
@@ -3141,7 +3166,7 @@ def run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_
     RhoPhiParams = []
     OS = []
     xM, xm, yM, ym = visual_coverage
-
+    interpolators = []
     if memmapping:
         tt = [0, 18000]
         wavelets_i = np.load(wavelet_path + 'dwt_videodata2_i.npy', mmap_mode='r')[tt[0]:tt[1]]
@@ -3151,11 +3176,197 @@ def run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_
         _ = wavelets_i[:].sum()
         _ = wavelets_r[:].sum()
     else:
-        wavelets = load_stimulus_simple_cell2(wavelet_path, tt=[0, 18000], downsampling=downsampling)
+        wavelets = load_stimulus_simple_cell2(wavelet_path, tt=[0, 18000], downsampling=False)
         wavelets_r = wavelets[0]
         wavelets_i = wavelets[1]
         del wavelets
         gc.collect()
+
+    def findBestPos_profiled(x, y, o, s, nmin=5, plotting=False):
+        x0 = np.maximum(x * 5, 5)
+        y0 = np.maximum(y * 5, 5)
+        x0 = np.minimum(x0, 130)
+        y0 = np.minimum(y0, 49)
+
+        spk = np.mean(spks[:5, :nmin * 1800, idx], axis=0).reshape(-1, 1)
+        spk_train = np.mean(spks[[0, 2], :nmin * 1800, idx], axis=0).reshape(-1, 1)
+
+        x = x0
+        y = y0
+        div = True
+        ttt = 0
+        r = 1
+        w = 10
+
+        torch.cuda.empty_cache()
+        xt = max(0, x0 - w)
+        yt = max(0, y0 - w)
+
+        x = w
+        y = w
+
+        wavelets_i = np.load(wavelet_path + 'dwt_videodata2_i.npy', mmap_mode='r')[tt[0]:nmin * 1800, xt:xt + (2 * w),
+        yt:yt + (2 * w), :, :, :]
+        wavelets_i = np.array(wavelets_i)
+        wavelets_r = np.load(wavelet_path + 'dwt_videodata2_r.npy', mmap_mode='r')[tt[0]:nmin * 1800, xt:xt + (2 * w),
+        yt:yt + (2 * w), :, :, :]
+        wavelets_r = np.array(wavelets_r)
+
+        while div:
+            print(x, y)
+            wavelets_complex = np.power(wavelets_r[:, x, y], 2) + np.power(wavelets_i[:, x, y], 2)
+            cc_f_1 = torch.corrcoef(torch.Tensor(
+                torch.concatenate(
+                    (torch.Tensor(wavelets_complex.reshape(nmin * 1800, -1).T), torch.Tensor(spk_train.T)),
+                    axis=0)).cuda()).detach().cpu().numpy()[-1:, :-1]
+            cc_f_1 = cc_f_1.reshape(8, 5, 4)
+            if plotting:
+                fig, ax = plt.subplots(8)
+                for i in range(8):
+                    ax[i].imshow(cc_f_1[i].T, vmin=-np.max(abs(cc_f_1)), vmax=np.max(abs(cc_f_1)), cmap='coolwarm')
+            m = np.where(abs(cc_f_1) == np.max(abs(cc_f_1)))
+            o, s, f = m[0][0], m[1][0], m[2][0]
+
+            wc = np.sqrt(np.power(wavelets_r[:, :, :, o, s, f], 2) + np.power(
+                wavelets_i[:, :, :, o, s, f], 2))
+            # wc=0
+            if r == 1:
+                wi = wavelets_i[:, :, :, o, s, f]
+                wr = wavelets_r[:, :, :, o, s, f]
+                wsin = np.max(wi)
+                wcos = np.max(wr)
+                m = np.argmax([wcos, wsin, np.max(wc)])
+                print(m, [wcos, wsin, np.max(wc)])
+                if m == 0:
+                    ww = wr
+                elif m == 1:
+                    ww = wi
+                else:
+                    ww = wc
+                r = 0
+
+            if ww.shape != (2 * w, 2 * w):
+                print('padding')
+                w_temp = np.zeros((ww.shape[0], 2 * w, 2 * w))
+                w_temp[:, :ww.shape[1], :ww.shape[2]] = ww
+                ww = w_temp
+
+            cc_f_1_xy = torch.corrcoef(torch.Tensor(
+                torch.concatenate((torch.Tensor(ww.reshape(nmin * 1800, -1).T), torch.Tensor(spk_train.T)),
+                                  axis=0)).cuda()).detach().cpu().numpy()[-1:, :-1]
+            cc_f_1_xy = np.nan_to_num(cc_f_1_xy)
+            cc_f_1_xy = cc_f_1_xy.reshape(2 * w, 2 * w)
+
+            m = np.where(abs(cc_f_1_xy) == np.max(abs(cc_f_1_xy)))
+            xt, yt = m[0][0], m[1][0]
+            x1, y1 = np.maximum(0, m[0][0] - w + x0), np.maximum(0, m[1][0] - w + y0)
+            if plotting:
+                plt.figure()
+                plt.imshow(cc_f_1_xy.T, vmax=np.max(abs(cc_f_1_xy)), cmap='coolwarm')
+
+            print(xt, yt)
+            print(o, s, f)
+            print(x1, y1)
+            ttt = ttt + 1
+            if xt == x:
+                if yt == y:
+                    print('converged')
+                    div = False
+            elif ttt == 10:
+                div = False
+            x = xt
+            y = yt
+
+        print(x1, y1, o, s, f)
+        torch.cuda.empty_cache()
+        return (x1, y1, o, s, f)
+
+    # array([ 242,  276,  687, 1170, 1296, 1429, 1651, 2030, 2312, 2329, 2453,
+    #        2551, 2571, 3061, 3329, 3336, 3529, 3707, 4043, 4352])
+    def findBestPos(x, y, o, s, nmin=5, plotting=False):
+        x0 = np.maximum(x * 5, 5)
+        y0 = np.maximum(y * 5, 5)
+        x0 = np.minimum(x0, 130)
+        y0 = np.minimum(y0, 49)
+        # spk = np.mean(spks[:, :nmin*1800, idx], axis=0).reshape(-1, 1)
+        spk_train = np.mean(spks[[0, 2], :nmin * 1800, idx], axis=0).reshape(-1, 1)
+        x = x0
+        y = y0
+        div = True
+        ttt = 0
+        r = 1
+        w = 10
+        torch.cuda.empty_cache()
+        while div:
+            wavelets_complex = np.power(wavelets_r[:nmin * 1800, x, y], 2) + np.power(wavelets_i[:nmin * 1800, x, y], 2)
+            print(wavelets_complex.shape, spk_train.shape)
+            cc_f_1 = torch.corrcoef(torch.Tensor(
+                torch.concatenate(
+                    (torch.Tensor(wavelets_complex.reshape(nmin * 1800, -1).T), torch.Tensor(spk_train.T)),
+                    axis=0)).cuda()).detach().cpu().numpy()[-1:, :-1]
+            cc_f_1 = cc_f_1.reshape(8, 5, 4)
+            if plotting:
+                fig, ax = plt.subplots(8)
+                for i in range(8):
+                    ax[i].imshow(cc_f_1[i].T, vmin=-np.max(abs(cc_f_1)), vmax=np.max(abs(cc_f_1)), cmap='coolwarm')
+            m = np.where(abs(cc_f_1) == np.max(abs(cc_f_1)))
+            o, s, f = m[0][0], m[1][0], m[2][0]
+
+            wc = np.sqrt(np.power(wavelets_r[:nmin * 1800, np.maximum(0, x0 - w):np.maximum(0, x0 - w) + (2 * w),
+            np.maximum(0, y0 - w):np.maximum(0, y0 - w) + (2 * w), o, s, f], 2) + np.power(
+                wavelets_i[:nmin * 1800, np.maximum(0, x0 - w):np.maximum(0, x0 - w) + (2 * w),
+                np.maximum(0, y0 - w):np.maximum(0, y0 - w) + (2 * w), o, s, f], 2))
+            # wc=0
+            if r == 1:
+                wi = wavelets_i[:nmin * 1800, np.maximum(0, x0 - w):np.maximum(0, x0 - w) + (2 * w),
+                np.maximum(0, y0 - w):np.maximum(0, y0 - w) + (2 * w), o, s, f]
+                wr = wavelets_r[:nmin * 1800, np.maximum(0, x0 - w):np.maximum(0, x0 - w) + (2 * w),
+                np.maximum(0, y0 - w):np.maximum(0, y0 - w) + (2 * w), o, s, f]
+                wsin = np.max(wi)
+                wcos = np.max(wr)
+                m = np.argmax([wcos, wsin, np.max(wc)])
+                print(m, [wcos, wsin, np.max(wc)])
+                if m == 0:
+                    ww = wr
+                elif m == 1:
+                    ww = wi
+                else:
+                    ww = wc
+                r = 0
+
+            if ww.shape != (2 * w, 2 * w):
+                print('padding')
+                w_temp = np.zeros((ww.shape[0], 2 * w, 2 * w))
+                w_temp[:, :ww.shape[1], :ww.shape[2]] = ww
+                ww = w_temp
+
+            cc_f_1_xy = torch.corrcoef(torch.Tensor(
+                torch.concatenate((torch.Tensor(ww.reshape(nmin * 1800, -1).T), torch.Tensor(spk_train.T)),
+                                  axis=0)).cuda()).detach().cpu().numpy()[-1:, :-1]
+            cc_f_1_xy = np.nan_to_num(cc_f_1_xy)
+            cc_f_1_xy = cc_f_1_xy.reshape(2 * w, 2 * w)
+
+            m = np.where(abs(cc_f_1_xy) == np.max(abs(cc_f_1_xy)))
+            x1, y1 = np.maximum(0, m[0][0] - w + x0), np.maximum(0, m[1][0] - w + y0)
+            if plotting:
+                plt.figure()
+                plt.imshow(cc_f_1_xy.T, vmax=np.max(abs(cc_f_1_xy)), cmap='coolwarm')
+            print(x, y)
+            print(o, s, f)
+            print(x1, y1)
+            ttt = ttt + 1
+            if x1 == x:
+                if y1 == y:
+                    print('converged')
+                    div = False
+            elif ttt == 10:
+                div = False
+            x = x1
+            y = y1
+
+        print(x, y, o, s, f)
+        torch.cuda.empty_cache()
+        return (x, y, o, s, f)
 
     if idxs==None:
         list_neurons= range(neuron_pos.shape[0])
@@ -3345,7 +3556,7 @@ def run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_
         dphi_inhib[nans] = np.interp(dx(nans), dx(~nans), dphi_inhib[~nans])
 
         dphi_ortho = np.zeros(dphi_inhib.shape)
-        vis_resp, a, nonlinparams, rhophiparams, plots, unrectified, w = GetNeuronVisresponse(idx, w_i, w_r,
+        vis_resp, a, nonlinparams, rhophiparams, plots, unrectified, w,interp = GetNeuronVisresponse(idx, w_i, w_r,
                                                                                               w_i_inhib,
                                                                                               w_r_inhib,
                                                                                               dphi.reshape(-1, 1),
@@ -3451,6 +3662,7 @@ def run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_
         RhoPhiParams.append(rhophiparams)
 
         Metrics.append(a)
+        interpolators.append(interp)
 
     M = [[m[0], m[1], m[2][0][1], m[3], m[4]] for m in Metrics]
 
@@ -3464,8 +3676,9 @@ def run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_
     np.save(os.path.join(full_path ,  'RPdp_metrics_8_noneigh_c_smoothpos_' + str(n_min) + '.npy'), M)
     np.save(os.path.join(full_path ,  'RPdp_os_8_noneigh_c_smoothpos_' + str(n_min) + '.npy'), OS)
     np.save(os.path.join(full_path , 'RPdp_params_8_noneigh_c_smoothpos_' + str(n_min) + '.npy'), np.array(Params))
-
-    return Predictions, Params, nonlinParams, RhoPhiParams, Metrics, OS
+    with open(os.path.join(full_path ,  "interpolators_" + str(n_min) + '.pkl'), "wb") as f:
+        pickle.dump(interpolators, f)
+    return Predictions, Params, nonlinParams, RhoPhiParams, Metrics, OS, interpolators
 
 
 def plotNeuralRaster(spks):

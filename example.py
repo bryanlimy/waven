@@ -215,15 +215,23 @@ tuning_curve=au.PlotTuningCurve(rfs_zebra, 2441, analysis_coverage, sigmas_deg, 
 
 ## run Model on all neurons at once and save the result
 # simple version (fast)
-Predictions, Params, nonlinParams,RhoPhiParams,Metrics, OS=run_Model(rfs, np.array(maxes1), np.array(maxes0), spks, wavelets1, wavelet0, double_wavelet_model=False)
+rfs = rfs_gabor[0]
+maxes1 = np.array(rfs_gabor[1])
+Predictions, Params, nonlinParams,RhoPhiParams,Metrics, OS=au.run_Model(rfs, np.array(maxes1), np.array(maxes0), spks, wavelets1, wavelet0, double_wavelet_model=False)
 
 # high granularity version (full model, slower)
 # if low RAM, set memmaping=True, if RAM >=120 GB you can set memmmapping=False, il will be faster
-results=run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_coverage, neuron_pos,
+results=au.run_Full_Model( maxes1, maxes0, spks,idxs,thetas,sigmas, frequencies,visual_coverage, neuron_pos,
                     wavelet_path='/media/sophie/Expansion1/UCL/utils/2screens/10/',
                     savepath = '/home/sophie/Pictures/img zebra/supp/supp/', n_min=5, tt=[10, 18000],
                     memmapping=True, train_idx=[0, 2],test_idx=[1, 3],double_wavelet_model=False, lastmin=False,
                     plotting=False )
 
+with open(os.path.join(pathdata, "interpolators_"+str(n_min)+'.pkl'), "rb") as f:
+    interpolators = pickle.load(f)
+Params=np.load(os.path.join(pathdata,'RPdp_params_8_noneigh_c_smoothpos_1.npy'))
 
+## predicts neural activity from images
+# wavelets_r and wavelets_i are the real and imaginary parts of the wavelet transform of the images
+pred=au.predict_neural_activity(idx, interpolators, Params, wavelets_r, wavelets_i)
 
