@@ -1866,7 +1866,7 @@ def getmetrics(x, y, n):
 
 
 
-def GetNeuronVisresponse(idx,w_i, w_r, w_i_inhib, w_r_inhib, dphi, dphi_inhib, spks,n_min, double_wavelet_model, dt1=9000, train_idx=[0, 2, 4], test_idx=[1, 3], lastmin=False, func=relu, sigma=7, plotting=False) :
+def GetNeuronVisresponse(idx,w_i, w_r, w_i_inhib, w_r_inhib, dphi, dphi_inhib, spks,n_min, double_wavelet_model, dt1=9000, train_idx=[0, 2, 4], test_idx=[1, 3], lastmin=True, func=relu, sigma=7, plotting=False) :
     gc.collect()
     spk = spks[:, :n_min*1800, idx]
     if lastmin:
@@ -1954,32 +1954,37 @@ def GetNeuronVisresponse(idx,w_i, w_r, w_i_inhib, w_r_inhib, dphi, dphi_inhib, s
     print(ev)
     print(cc)
 
-    # if lastmin:
-    print('prediction last minute : ')
+    if lastmin:
+        print('prediction last minute : ')
 
-    tp_test=14400#10800#int(np.round(0.66*dt1))
+        tp_test=14400#10800#int(np.round(0.66*dt1))
 
 
-    X1 = np.concatenate([(np.concatenate(
-        (pred[tp_test:], pred_h[tp_test:]), axis=1))
-        for rep in test_idx])
+        X1 = np.concatenate([(np.concatenate(
+            (pred[tp_test:], pred_h[tp_test:]), axis=1))
+            for rep in test_idx])
 
-    X1 = np.nan_to_num(X1)
+        X1 = np.nan_to_num(X1)
 
-    y_test = np.concatenate([spks[r, tp_test:, idx] for r in train_idx])
-    res = func(X1, *fittedParameters)
-    res1 = res  # + (w_pc*pcs_test[:, 0])
-    reslastmin = np.mean(res1.reshape(len(test_idx), 3600), axis=0)
-    # res3 = match_cumulative_cdf(res2, np.mean(y_test.reshape(2, 1800), axis=0))
-    print(np.mean(y_test.reshape(len(test_idx),  dt1-tp_test), axis=0).shape, reslastmin.shape)
-    evlastmin= explained_variance_score(np.mean(y_test.reshape(len(test_idx),  dt1-tp_test), axis=0), reslastmin, multioutput='uniform_average')
-    fevelastmin = FEVE(y_test.reshape(len(test_idx), dt1-tp_test), reslastmin)
-    cclastmin=np.corrcoef(np.mean(y_test.reshape(len(test_idx),  dt1-tp_test), axis=0), reslastmin)[0,1]
+        y_test = np.concatenate([spks[r, tp_test:, idx] for r in train_idx])
+        res = func(X1, *fittedParameters)
+        res1 = res  # + (w_pc*pcs_test[:, 0])
+        reslastmin = np.mean(res1.reshape(len(test_idx), 3600), axis=0)
+        # res3 = match_cumulative_cdf(res2, np.mean(y_test.reshape(2, 1800), axis=0))
+        print(np.mean(y_test.reshape(len(test_idx),  dt1-tp_test), axis=0).shape, reslastmin.shape)
+        evlastmin= explained_variance_score(np.mean(y_test.reshape(len(test_idx),  dt1-tp_test), axis=0), reslastmin, multioutput='uniform_average')
+        fevelastmin = FEVE(y_test.reshape(len(test_idx), dt1-tp_test), reslastmin)
+        cclastmin=np.corrcoef(np.mean(y_test.reshape(len(test_idx),  dt1-tp_test), axis=0), reslastmin)[0,1]
 
-    print(feve)
-    print(ev)
-    print(cclastmin)
-    gc.collect()
+        print(feve)
+        print(ev)
+        print(cclastmin)
+        gc.collect()
+    else:
+        cclastmin=0
+        evlastmin=0
+        fevelastmin=0
+        reslastmin=0
     return res2, [feve, ev, cc, cc_train, cclastmin], fittedParameters, [d, c, hmp, d_h, c_h, hmp_h], plot, unrectified, w
 
 
@@ -3137,7 +3142,7 @@ def run_Model(maxes0, maxes1, spks, wavelets_i, wavelets_r, dt1=9000, n_min=5, d
                                                                                           train_idx=train_idx,
                                                                                           test_idx=test_idx,
                                                                                           double_wavelet_model=False,
-                                                                                          lastmin=False, func=relu, sigma=15,
+                                                                                          lastmin=True, func=relu, sigma=15,
                                                                                           plotting=False)
         print(rhophiparams)
         # vis_resp, a,nonlinparams=GetNeuronVisresponseGRP(idx,w_i, w_r, w_c, w_i_inhib, w_r_inhib, w_c_inhib, dphi.reshape(-1, 1), dphi_inhib.reshape(-1, 1), spks, dt1=7200, train_idx=[0, 2], test_idx=[1, 3], lastmin=False, func=relu)

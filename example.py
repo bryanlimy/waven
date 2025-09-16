@@ -217,7 +217,10 @@ tuning_curve=au.PlotTuningCurve(rfs_zebra, 2441, analysis_coverage, sigmas_deg, 
 # simple version (fast)
 rfs = rfs_gabor[0]
 maxes1 = np.array(rfs_gabor[1])
-Predictions, Params, nonlinParams,RhoPhiParams,Metrics, OS=au.run_Model(rfs, np.array(maxes1), np.array(maxes0), spks, wavelets1, wavelet0, double_wavelet_model=False)
+
+results=au.run_Model(rfs, np.array(maxes1), np.array(maxes0), spks, wavelets1, wavelet0, double_wavelet_model=False)
+Predictions, nonlinParams,RhoPhiParams,Metrics,interpolators=results
+Params=np.swapaxes(np.array([maxes1, maxes1]), 0, 1).T
 
 # high granularity version (full model, slower)
 # if low RAM, set memmaping=True, if RAM >=120 GB you can set memmmapping=False, il will be faster
