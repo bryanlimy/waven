@@ -4,23 +4,17 @@ Created on Wed Mar 25 19:31:32 2025
 @author: Sophie Skriabine
 """
 
-import os
-
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy.io as sio
-import skimage
-from scipy import ndimage
-from skimage import transform
-
-matplotlib.use("TkAgg")
 import gc
 
 import cv2
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import skimage
 import torch
 from skimage.filters import gabor_kernel
-from skimage.measure import block_reduce
+
+matplotlib.use("TkAgg")
 
 
 def makeGaborFilter(

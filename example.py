@@ -1,4 +1,3 @@
-import gc
 import os
 
 import numpy as np

@@ -4,16 +4,13 @@ Created on Wed Mar 25 19:31:32 2025
 @author: Sophie Skriabine
 """
 
-import os
 import sys
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 
-from waven.Analysis_Utils import *
 from waven.LoadPinkNoise import *
 from waven.WaveletGenerator import *
 

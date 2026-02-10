@@ -4,25 +4,21 @@ Created on Wed Mar 25 19:31:32 2025
 @author: Sophie Skriabine
 """
 
+import gc
+import math
 import os
 import pickle
 
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import skimage
-from skimage import transform
-
-matplotlib.use("TkAgg")
-import gc
-import math
-
 import cv2
 import cv2 as cv
+import matplotlib
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import numpy as np
 import pandas as pd
 import seaborn as sns
+import skimage
 import tifffile
 import torch
 from matplotlib.gridspec import GridSpec
@@ -38,13 +34,13 @@ from scipy.sparse.linalg import svds
 from scipy.spatial import cKDTree
 from scipy.stats import pearsonr
 from scipy.stats import skew
-from sklearn.cluster import KMeans
-from sklearn.cluster import spectral_clustering
+from skimage import transform
 from sklearn.decomposition import NMF
-from sklearn.feature_extraction import image
 from tensorly.decomposition import non_negative_parafac
 
 from waven.LoadPinkNoise import load_stimulus_simple_cell2
+
+matplotlib.use("TkAgg")
 
 
 def pi_formatter(x, pos):
