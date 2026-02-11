@@ -8,6 +8,7 @@ import gc
 import math
 import os
 import pickle
+import sys
 
 import cv2
 import cv2 as cv
@@ -38,7 +39,8 @@ from tensorly.decomposition import non_negative_parafac
 
 from waven.LoadPinkNoise import load_stimulus_simple_cell2
 
-matplotlib.use("TkAgg")
+if sys.platform == "darwin":
+    matplotlib.use("TkAgg")
 
 
 def pi_formatter(x, pos):

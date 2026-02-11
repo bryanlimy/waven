@@ -5,6 +5,7 @@ Created on Wed Mar 25 19:31:32 2025
 """
 
 import gc
+import sys
 from pathlib import Path
 
 import cv2
@@ -17,7 +18,8 @@ from einops import rearrange
 from skimage.filters import gabor_kernel
 from tqdm import tqdm
 
-matplotlib.use("TkAgg")
+if sys.platform == "darwin":
+    matplotlib.use("TkAgg")
 
 
 def makeGaborFilter(

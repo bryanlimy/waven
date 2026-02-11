@@ -4,7 +4,6 @@ Created on Wed Mar 25 19:31:32 2025
 @author: Sophie Skriabine
 """
 
-import sys
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk

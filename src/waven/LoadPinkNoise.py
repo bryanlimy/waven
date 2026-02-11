@@ -4,6 +4,8 @@ Created on Wed Mar 25 19:31:32 2025
 @author: Sophie Skriabine
 """
 
+import sys
+
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 
@@ -12,7 +14,8 @@ from waven.suite2p.utils import cortex_lab_utils as clu
 from waven.suite2p.utils import timelinepy as tlu
 from waven.suite2p.utils import utils as utils
 
-matplotlib.use("TkAgg")
+if sys.platform == "darwin":
+    matplotlib.use("TkAgg")
 
 
 def load_wavelets(pathdir, nx, ny, wavelets_r, wavelets_i, direction=False):
