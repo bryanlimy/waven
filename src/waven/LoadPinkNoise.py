@@ -4,20 +4,13 @@ Created on Wed Mar 25 19:31:32 2025
 @author: Sophie Skriabine
 """
 
-import gc
-import os
-
-import matplotlib
-import numpy as np
-from skimage import transform
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
 
 from waven.Analysis_Utils import *
-
-from .suite2p.utils import cortex_lab_utils as clu
-from .suite2p.utils import timelinepy as tlu
-from .suite2p.utils import utils as utils
+from waven.suite2p.utils import cortex_lab_utils as clu
+from waven.suite2p.utils import timelinepy as tlu
+from waven.suite2p.utils import utils as utils
 
 matplotlib.use("TkAgg")
 

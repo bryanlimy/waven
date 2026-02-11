@@ -5,6 +5,7 @@ Created on Wed Mar 25 19:31:32 2025
 """
 
 import gc
+from pathlib import Path
 
 import cv2
 import matplotlib
@@ -12,7 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skimage
 import torch
+from einops import rearrange
 from skimage.filters import gabor_kernel
+from tqdm import tqdm
 
 matplotlib.use("TkAgg")
 
@@ -168,14 +171,20 @@ def makeFilterLibrary3D(
     return fp
 
 
-def waveletTransform(frame, phase, L):
-    output = L[:, :, :, phase] @ torch.Tensor(frame.flatten()).cuda()
+def waveletTransform(
+    frame: torch.Tensor,
+    phase: int,
+    L: torch.Tensor,
+    device: torch.device | str = "cpu",
+) -> torch.Tensor:
+    output = L[:, :, :, phase] @ frame
+    # output = L[:, :, :, phase] @ torch.Tensor(frame.flatten()).to(device)
     # output=torch.sum(output, axis=(0, 1))
-    return output.detach().cpu().numpy()
+    return output
 
 
-def waveletTransform3D(frame, L):
-    output = L @ torch.Tensor(frame.flatten()).cuda()
+def waveletTransform3D(frame, L, device: torch.device | str = "cpu"):
+    output = L @ torch.Tensor(frame.flatten()).to(device)
     # output=torch.sum(output, axis=(0, 1))
     return output.detach().cpu().numpy()
 
@@ -194,25 +203,37 @@ def getTrueRF(idx, rfs, L):
     )  # vmin=-0.0014, vmax=0.0014,
 
 
-def getWTfromNPY(videodata, waveletLibrary, phase):
-    WT = []
-    l = torch.Tensor(waveletLibrary).cuda()
-    for i, frame in enumerate(videodata):
-        print(i)
-        wt = waveletTransform(frame, phase, l)
-        torch.cuda.empty_cache()
-        WT.append(wt)
-    WT = np.array(WT)
-    # l = l.detach().cpu().numpy()
-    # torch.cuda.empty_cache()
-    # del l
-    # gc.collect()
+def getWTfromNPY(
+    videodata: torch.Tensor,
+    waveletLibrary: torch.Tensor,
+    phase: int,
+    sigma: int,
+    device: torch.device | str = "cpu",
+):
+    WT = torch.zeros(
+        (
+            videodata.shape[0],
+            waveletLibrary.shape[0],
+            waveletLibrary.shape[1],
+            waveletLibrary.shape[2],
+            waveletLibrary.shape[4],
+        ),
+        dtype=waveletLibrary.dtype,
+        device=waveletLibrary.device,
+    )
+    for i, frame in enumerate(tqdm(videodata, desc=f"WT (sigma {sigma})")):
+        WT[i] = waveletTransform(
+            frame=frame,
+            phase=phase,
+            L=waveletLibrary,
+            device=device,
+        )
     return WT
 
 
-def getWTfromNPY3D(videodata, waveletLibrary, tp_w):
+def getWTfromNPY3D(videodata, waveletLibrary, tp_w, device: torch.device | str = "cpu"):
     WT = []
-    l = torch.Tensor(waveletLibrary).cuda()
+    l = torch.Tensor(waveletLibrary).to(device)
     for i in range(tp_w, videodata.shape[0]):
         print(i)
         wt = waveletTransform3D(videodata[i - tp_w : i], l)
@@ -351,11 +372,12 @@ def downsample_video_uint(path, shape=(54, 135), chunk_size=1000):
 
 
 def waveletDecomposition(
-    videodata,
-    phase,
-    sigmas,
-    folder_path,
-    library_path="/media/sophie/Expansion1/UCL/datatest/gabors_library.npy",
+    videodata: np.ndarray,
+    phase: int,
+    sigmas: np.ndarray | list,
+    folder_path: Path,
+    library_path: Path,
+    device: torch.device | str = "cpu",
 ):
     """
     Runs the wavelet decomposition
@@ -371,11 +393,32 @@ def waveletDecomposition(
         saves the wavelet decomposition as 'dwt_videodata_0 / 1.npy' at folder_path
     """
     L = np.load(library_path)
-    WT = []
+    L = torch.from_numpy(L).to(device)
+    videodata = torch.from_numpy(videodata).to(device)
+    videodata = rearrange(videodata, "t h w -> t (h w)").to(L.dtype)
+    # WT = []
+    WT = torch.zeros(
+        (
+            len(sigmas),
+            videodata.shape[0],
+            L.shape[0],
+            L.shape[1],
+            L.shape[2],
+            L.shape[5],
+        ),
+        dtype=L.dtype,
+        device=device,
+    )
     for s, ss in enumerate(sigmas):
-        l = L[:, :, :, s]
-        wt = getWTfromNPY(videodata, l, phase)
-        WT.append(wt)
-    WT = np.array(WT)
-    WT = np.moveaxis(WT, 0, 4)
-    np.save(folder_path + "/dwt_videodata_" + str(phase) + ".npy", WT)
+        WT[s] = getWTfromNPY(
+            videodata=videodata,
+            waveletLibrary=L[:, :, :, s],
+            phase=phase,
+            sigma=ss,
+        )
+        # WT.append(wt)
+    WT = rearrange(WT, "a b c d e f -> b c d e a f")
+    WT = WT.cpu().numpy()
+    # WT = np.array(WT)
+    # WT = np.moveaxis(WT, 0, 4)
+    np.save(folder_path / "dwt_videodata_" + str(phase) + ".npy", WT)

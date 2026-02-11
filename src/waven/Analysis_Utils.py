@@ -13,7 +13,6 @@ import cv2
 import cv2 as cv
 import matplotlib
 import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
@@ -34,7 +33,6 @@ from scipy.sparse.linalg import svds
 from scipy.spatial import cKDTree
 from scipy.stats import pearsonr
 from scipy.stats import skew
-from skimage import transform
 from sklearn.decomposition import NMF
 from tensorly.decomposition import non_negative_parafac
 
@@ -81,13 +79,19 @@ def max_by_index(idx, arr):
     return np.where(arr[idx] == m), m
 
 
-def PearsonCorrelation(stim, resp, neuron_pos, nx, ny, plotting=True):
-    import torch
-
+def PearsonCorrelation(
+    stim,
+    resp,
+    neuron_pos,
+    nx,
+    ny,
+    plotting=True,
+    device: torch.device | str = "cpu",
+):
     cc_f_1 = torch.corrcoef(
-        torch.Tensor(
+        torch.from_numpy(
             np.concatenate((np.abs(stim.reshape(stim.shape[0], -1)).T, resp.T), axis=0)
-        ).cuda()
+        ).to(device)
     )  # , dtype='float16')
     cc_f_1 = cc_f_1.detach().cpu().numpy()
     print(cc_f_1.shape)
@@ -147,6 +151,7 @@ def PearsonCorrelationPinkNoise(
     fil=[0],
     absolute=False,
     plotting=False,
+    device: torch.device | str = "cpu",
 ):
     """
     Runs Pearson corrrlation between the wavelet decomposition and the neurons spikes
@@ -166,32 +171,32 @@ def PearsonCorrelationPinkNoise(
         tuple : (receptive field matrix (nb_neurons * nx, ny, no, ns), best gabor params for each neurons (list shape 4(nx, ny, no, ns)* nb_neurons), best gabor with units in visual degree, max values array)
     """
     try:
-        # cc_f_1 = torch.corrcoef(torch.Tensor(np.concatenate((np.abs(stim.reshape(stim.shape[0], -1)).T, resp.T),axis=0).astype('float16')).cuda())  # , dtype='float16')
+        # cc_f_1 = torch.corrcoef(torch.Tensor(np.concatenate((np.abs(stim.reshape(stim.shape[0], -1)).T, resp.T),axis=0).astype('float16')).to(device))  # , dtype='float16')
         cc_f_1 = torch.corrcoef(
-            torch.Tensor(
+            torch.from_numpy(
                 torch.concatenate((stim.reshape(stim.shape[0], -1).T, resp.T), axis=0)
-            ).cuda()
+            ).to(device)
         )  # , dtype='float16')
     except:
         torch.cuda.empty_cache()
         stim = torch.Tensor(stim)
         resp = torch.Tensor(resp)
         cc_f_1 = torch.corrcoef(
-            torch.Tensor(
+            torch.from_numpy(
                 torch.concatenate((stim.reshape(stim.shape[0], -1).T, resp.T), axis=0)
-            ).cuda()
+            ).to(device)
         )
 
     # try:
-    # cc_f_1 = torch.corrcoef(torch.Tensor(np.concatenate((np.abs(stim.reshape(stim.shape[0], -1)).T, resp.T),axis=0).astype('float16')).cuda())  # , dtype='float16')
-    # cc_f_1 = torch.corrcoef(torch.Tensor(np.concatenate((stim.reshape(stim.shape[0], -1).T, resp.T),axis=0)).cuda())# , dtype='float16')
+    # cc_f_1 = torch.corrcoef(torch.Tensor(np.concatenate((np.abs(stim.reshape(stim.shape[0], -1)).T, resp.T),axis=0).astype('float16')).to(device))  # , dtype='float16')
+    # cc_f_1 = torch.corrcoef(torch.Tensor(np.concatenate((stim.reshape(stim.shape[0], -1).T, resp.T),axis=0)).to(device))# , dtype='float16')
     # except:
     #     print('cpu')
     #     torch.cuda.empty_cache()
     #     stim=torch.Tensor(stim)
     #     resp = torch.Tensor(resp)
     #     cc_f_1 = torch.corrcoef(
-    #         torch.Tensor(torch.concatenate((stim.reshape(stim.shape[0], -1).T, resp.T), axis=0)).cuda())
+    #         torch.Tensor(torch.concatenate((stim.reshape(stim.shape[0], -1).T, resp.T), axis=0)).to(device))
     print(cc_f_1.shape)
     cc_f_1 = cc_f_1.detach().cpu().numpy()
     if absolute:
@@ -599,7 +604,7 @@ def PCcorrelation(spks, neuron_pos):
     # torch.cuda.empty_cache()
     # spks = torch.Tensor(spks)
     # pc1=torch.Tensor(pc1).reshape(-1,1)
-    # cc_f_1 = torch.corrcoef(torch.Tensor(torch.concatenate((spks.reshape(-1, spks.shape[2]).T, pc1.T), axis=0)).cuda())
+    # cc_f_1 = torch.corrcoef(torch.Tensor(torch.concatenate((spks.reshape(-1, spks.shape[2]).T, pc1.T), axis=0)).to(device))
     # cc_f_1=cc_f_1[-1][:-1].detach().cpu().numpy()
     # plt.figure()
     # plt.rcParams['axes.facecolor'] = 'none'
@@ -609,13 +614,13 @@ def PCcorrelation(spks, neuron_pos):
     return pc1, pc2
 
 
-def NeuronCorrelation(idx, spks, neuron_pos):
+def NeuronCorrelation(idx, spks, neuron_pos, device: torch.device | str = "cpu"):
     spks = torch.Tensor(spks)
     try:
-        cc_ = torch.corrcoef(spks.reshape(-1, spks.shape[2]).T.cuda())
+        cc_ = torch.corrcoef(spks.reshape(-1, spks.shape[2]).T.to(device))
     except:
         print("sparsenoise sp045 ?")
-        cc_ = torch.corrcoef(spks.cuda())
+        cc_ = torch.corrcoef(spks.to(device))
     cc_f_1 = cc_[idx].detach().cpu().numpy()
     # plt.figure()
     # plt.rcParams['axes.facecolor'] = 'none'
@@ -1281,9 +1286,9 @@ def diffSinCosPlot(idx, spks, x, y, o, s, w_i_downsampled, w_r_downsampled):
     )
 
 
-def compute_sta(a, b, ran):
-    a = torch.Tensor(a).cuda()
-    b = torch.Tensor(b).cuda()
+def compute_sta(a, b, ran, device: torch.device | str = "cpu"):
+    a = torch.Tensor(a).to(device)
+    b = torch.Tensor(b).to(device)
     c = np.array(
         [
             (
@@ -1349,10 +1354,10 @@ def spikeTrig(spk, w_i, w_r, w_c, ran):
     return mu_sin, mu_cos, mu_complex
 
 
-def compute_stc(a, b, mu_b, ran, dt1, dt2):
-    a = torch.Tensor(a).cuda()
-    b = torch.Tensor(b).cuda()
-    mu_b = torch.Tensor(mu_b).cuda()
+def compute_stc(a, b, mu_b, ran, dt1, dt2, device: torch.device | str = "cpu"):
+    a = torch.Tensor(a).to(device)
+    b = torch.Tensor(b).to(device)
+    mu_b = torch.Tensor(mu_b).to(device)
     # c=(torch.sum(
     #     (a[ran:].reshape(1, -1)  @  (b[ran - dt1:b.shape[0] - dt1] - mu_b[dt1]).reshape(b.shape[0]-ran, -1)).T
     #     @
@@ -1843,7 +1848,9 @@ def PlotR2scoreAnalysis(path, neuron_pos, respcorr):
     return r, np.where(r2 >= 0.2)
 
 
-def calculate_spike_triggered_covariance(spikes, stimulus, tau):
+def calculate_spike_triggered_covariance(
+    spikes, stimulus, tau, device: torch.device | str = "cpu"
+):
     """
     Calcule la matrice de covariance déclenchée par un spike.
 
@@ -1891,8 +1898,8 @@ def calculate_spike_triggered_covariance(spikes, stimulus, tau):
         for start_j in range(start_i, X * tau, slice_size):
             end_j = min(start_j + slice_size, X * tau)
 
-            slice_i = torch.Tensor(centered_segments[:, start_i:end_i]).cuda()
-            slice_j = torch.Tensor(centered_segments[:, start_j:end_j]).cuda()
+            slice_i = torch.Tensor(centered_segments[:, start_i:end_i]).to(device)
+            slice_j = torch.Tensor(centered_segments[:, start_j:end_j]).to(device)
 
             # Calculer la covariance partielle pour ce slice
             partial_cov = slice_i.t().mm(slice_j) / (num_segments - 1)
@@ -3809,6 +3816,7 @@ def run_Full_Model(
     double_wavelet_model=False,
     lastmin=False,
     plotting=False,
+    device: torch.device | str = "cpu",
 ):
     Predictions = []
     Metrics = []
@@ -3888,7 +3896,7 @@ def run_Full_Model(
                             ),
                             axis=0,
                         )
-                    ).cuda()
+                    ).to(device)
                 )
                 .detach()
                 .cpu()
@@ -3943,7 +3951,7 @@ def run_Full_Model(
                             ),
                             axis=0,
                         )
-                    ).cuda()
+                    ).to(device)
                 )
                 .detach()
                 .cpu()
@@ -4009,7 +4017,7 @@ def run_Full_Model(
                             ),
                             axis=0,
                         )
-                    ).cuda()
+                    ).to(device)
                 )
                 .detach()
                 .cpu()
@@ -4098,7 +4106,7 @@ def run_Full_Model(
                             ),
                             axis=0,
                         )
-                    ).cuda()
+                    ).to(device)
                 )
                 .detach()
                 .cpu()
@@ -4205,7 +4213,7 @@ def run_Full_Model(
                         ),
                         axis=0,
                     )
-                ).cuda()
+                ).to(device)
             )
             .detach()
             .cpu()
@@ -4253,7 +4261,7 @@ def run_Full_Model(
                             ),
                             axis=0,
                         )
-                    ).cuda()
+                    ).to(device)
                 )
                 .detach()
                 .cpu()

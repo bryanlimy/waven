@@ -28,14 +28,23 @@ import waven.WaveletGenerator as wg
 # ============================================================================
 
 output_dir = Path("runs/VT333_FOV1_day1")
-video_file = output_dir / "video" / "zebra_noise.avi"
+video_dir = output_dir / "video"
+video_filename = video_dir / "zebra_noise.avi"
+downsampled_video_filename = video_dir / f"{video_filename.stem}_downsampled.npy"
 
 # load calcium responses
 calcium_data = loadmat(output_dir / "responses" / "A12deltaF_fissa.mat")
 # remove the first 2 channel
 calcium_data = calcium_data["deltaF"][2:]
-# remove the first 4 seconds of black and grey
-calcium_data = calcium_data[:, (4 * 30) :]
+# Sequence of visual stimulation
+# - 4s of black screen
+# - 4s of grey screen
+# - 2s of black screen
+# - 2s of grey screen
+# - 5mins of zebra noise
+# - 4s of black screen
+# - 4s of grey screen
+calcium_data = calcium_data[:, (4 + 4 + 2 + 2) * 30 : -((4 + 4) * 30)]
 
 # load neuron coordinates
 rois = read_roi_zip(output_dir / "ROI" / "copyROIs.zip")
@@ -56,13 +65,14 @@ print("Creating Gabor library...")
 gabor_file = output_dir / "gabor_library.npy"
 
 nx, ny = 135, 54
+sigmas = np.array([2, 3, 4, 5, 6, 8], dtype=int)
+
 if not gabor_file.exists():
     # Create library with standard mouse V1 parameters
     xs = np.arange(nx)
     ys = np.arange(ny)
     n_theta = 8
     thetas = np.array([(i * np.pi) / n_theta for i in range(n_theta)])
-    sigmas = np.array([2, 3, 4, 5, 6, 8], dtype=int)
     phases = np.array([0, 90], dtype=int)
     freqs = np.array([0.015, 0.04, 0.07, 0.1], dtype=np.float32)
 
@@ -77,12 +87,8 @@ if not gabor_file.exists():
     np.save(gabor_file, L)
 
 # Step 2: Process video
-print("Processing zebra noise video...")
-video_dir = video_file.parent
-
-# Downsample (if not done already)
-downsampled = video_dir / f"{video_file.stem}_downsampled.npy"
-if not downsampled.exists():
+print("\nProcessing zebra noise video...")
+if not downsampled_video_filename.exists():
     visual_coverage = np.array([-135, 45, 34, -34])
     analysis_coverage = np.array([-135, 0, 34, -34])
     ratio_x = 1 - (
@@ -94,7 +100,7 @@ if not downsampled.exists():
         - (analysis_coverage[2] - analysis_coverage[3])
     ) / (visual_coverage[2] - visual_coverage[3])
     wg.downsample_video_binary(
-        str(video_file),
+        str(video_filename),
         visual_coverage,  # Visual coverage
         analysis_coverage,  # Analysis region
         shape=(ny, nx),
@@ -103,10 +109,23 @@ if not downsampled.exists():
     )
 
 # Wavelet decompose (if not done already)
+print(f"\nWavelet decomposition...")
 if not (video_dir / "wavelet_phase0.npy").exists():
-    video = np.load(downsampled)
-    wg.waveletDecomposition(video, 0, [2, 3, 4, 5, 6, 8], video_dir, gabor_file)
-    wg.waveletDecomposition(video, 1, [2, 3, 4, 5, 6, 8], video_dir, gabor_file)
+    video = np.load(downsampled_video_filename)
+    wg.waveletDecomposition(
+        videodata=video,
+        phase=0,
+        sigmas=sigmas,
+        folder_path=video_dir,
+        library_path=gabor_file,
+    )
+    wg.waveletDecomposition(
+        videodata=video,
+        phase=1,
+        sigmas=sigmas,
+        folder_path=video_dir,
+        library_path=gabor_file,
+    )
 
 # Step 3: Extract receptive fields
 print("Extracting receptive fields...")

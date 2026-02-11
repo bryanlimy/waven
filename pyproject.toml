@@ -30,7 +30,9 @@ dependencies = [
     "read-roi",
     "scipy-stubs",
     "pandas-stubs",
-    "tensorly"
+    "tensorly",
+    "tqdm",
+    "einops"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
